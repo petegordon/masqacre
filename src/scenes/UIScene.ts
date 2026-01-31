@@ -27,6 +27,7 @@ export class UIScene extends Phaser.Scene {
 
   init(data: { gameScene: GameScene }): void {
     this.gameScene = data.gameScene;
+    this.isInventoryOpen = false;
   }
 
   create(): void {
@@ -382,6 +383,16 @@ export class UIScene extends Phaser.Scene {
     this.gameScene.events.on('toggleInventory', this.toggleInventory, this);
     this.gameScene.events.on('clueDiscovered', this.onClueDiscovered, this);
     this.gameScene.events.on('targetIdentified', this.onTargetIdentified, this);
+  }
+
+  shutdown(): void {
+    // Clean up event listeners
+    this.gameScene.events.off('toggleInventory', this.toggleInventory, this);
+    this.gameScene.events.off('clueDiscovered', this.onClueDiscovered, this);
+    this.gameScene.events.off('targetIdentified', this.onTargetIdentified, this);
+
+    // Stop all tweens
+    this.tweens.killAll();
   }
 
   private updateSuspicionMeter(): void {

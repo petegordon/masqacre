@@ -29,6 +29,7 @@ export interface NPCData {
   knownInfo: string[]; // Info this NPC knows about others
   isTarget?: boolean;
   hasRichDialogue?: boolean; // Only these NPCs have full dialogue options
+  portrait?: string; // Path to character portrait image for dialogue
 }
 
 export interface DialogueChoice {

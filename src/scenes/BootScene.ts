@@ -36,16 +36,22 @@ export class BootScene extends Phaser.Scene {
       frameHeight: 32
     });
 
-    // Load room items spritesheet
-    this.load.image('room_items_base', 'assets/sprites/room_items.png');
+    // Load furniture sprites
+    this.load.image('furniture_bookcase', 'assets/sprites/furniture_bookcase.png');
+    this.load.image('furniture_chair_forward', 'assets/sprites/furniture_chair_forward.png');
+    this.load.image('furniture_chair_right', 'assets/sprites/furniture_chair_right.png');
+
+    // Load character portraits for dialogue
+    this.load.image('portrait_lord_vermillion', 'assets/characters/red_lord_vermillion.png');
+    this.load.image('portrait_duchess_fontaine', 'assets/characters/white_duchess_fontaine.png');
+    this.load.image('portrait_miss_evergreen', 'assets/characters/green_miss_evergreen.png');
+    this.load.image('portrait_viscount_azure', 'assets/characters/blue_viscount_azure.png');
+    this.load.image('portrait_wine_merchant', 'assets/characters/yellow_wine_merchant.png');
   }
 
   create(): void {
     // Generate color-swapped character spritesheets
     this.createCharacterVariants();
-
-    // Extract room item textures
-    this.createRoomItemTextures();
 
     // Generate other textures
     this.createOtherTextures();
@@ -55,80 +61,6 @@ export class BootScene extends Phaser.Scene {
 
     // Transition to menu
     this.scene.start('MenuScene');
-  }
-
-  private createRoomItemTextures(): void {
-    const baseTexture = this.textures.get('room_items_base');
-    const baseImage = baseTexture.getSourceImage() as HTMLImageElement;
-
-    // Define item extraction regions from room_items.png
-    // Measured from the actual sprite sheet layout
-    const items = [
-      // Picture frame (top-left)
-      { name: 'item_picture', x: 0, y: 0, width: 32, height: 32 },
-
-      // Bush/tree (top-right)
-      { name: 'item_bush', x: 96, y: 0, width: 48, height: 64 },
-
-      // Carpets
-      { name: 'item_carpet_red', x: 0, y: 64, width: 32, height: 32 },
-
-      // Couch/sofa (middle section)
-      { name: 'item_couch', x: 64, y: 96, width: 48, height: 24 },
-
-      // Cabinet/wardrobe (right side, tall)
-      { name: 'item_cabinet', x: 128, y: 80, width: 32, height: 48 },
-
-      // Chairs (small)
-      { name: 'item_chair1', x: 112, y: 112, width: 16, height: 16 },
-      { name: 'item_chair2', x: 160, y: 80, width: 16, height: 16 },
-
-      // Bookcases (bottom area)
-      { name: 'item_bookcase1', x: 80, y: 144, width: 32, height: 48 },
-      { name: 'item_bookcase2', x: 112, y: 144, width: 32, height: 48 },
-      { name: 'item_bookcase3', x: 144, y: 144, width: 32, height: 48 },
-
-      // Small items - candles
-      { name: 'item_candle1', x: 0, y: 112, width: 16, height: 16 },
-      { name: 'item_candle2', x: 16, y: 112, width: 16, height: 16 },
-      { name: 'item_candle3', x: 32, y: 112, width: 16, height: 16 },
-
-      // Bottles/potions
-      { name: 'item_bottle1', x: 0, y: 128, width: 16, height: 16 },
-      { name: 'item_bottle2', x: 16, y: 128, width: 16, height: 16 },
-      { name: 'item_bottle3', x: 32, y: 128, width: 16, height: 16 },
-
-      // Books and crates
-      { name: 'item_books', x: 48, y: 176, width: 16, height: 16 },
-      { name: 'item_crate', x: 64, y: 176, width: 16, height: 16 },
-    ];
-
-    items.forEach(item => {
-      // Bounds check
-      if (item.x + item.width > baseImage.width || item.y + item.height > baseImage.height) {
-        console.warn(`Item ${item.name} exceeds image bounds, skipping`);
-        return;
-      }
-
-      // Create a canvas for each item
-      const canvas = document.createElement('canvas');
-      canvas.width = item.width;
-      canvas.height = item.height;
-      const ctx = canvas.getContext('2d')!;
-
-      // Draw the cropped region from the base image
-      ctx.drawImage(
-        baseImage,
-        item.x, item.y, item.width, item.height,
-        0, 0, item.width, item.height
-      );
-
-      // Add as texture
-      if (this.textures.exists(item.name)) {
-        this.textures.remove(item.name);
-      }
-      this.textures.addCanvas(item.name, canvas);
-    });
   }
 
   private createCharacterVariants(): void {

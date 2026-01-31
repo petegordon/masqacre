@@ -1,170 +1,193 @@
 import { DialogueNode, DialogueChoice, NPCData, GameState, ClueType } from '../types';
 import { NPC_DATA } from './NPCData';
+import dialogueData from './dialogues.json';
 
 interface DialogueTree {
   startNodeId: string;
   nodes: Record<string, DialogueNode>;
 }
 
-export function getDialogueForNPC(npc: NPCData, gameState: GameState): DialogueTree {
-  // Base greeting based on personality
-  const greetings: Record<string, string> = {
-    nervous: '*fidgets* Oh! You startled me...',
-    confident: 'Ah, another guest. What brings you to speak with me?',
-    secretive: '*eyes you carefully* ...Yes?',
-    gossipy: 'Oh my, have you heard the latest? There\'s so much to discuss!',
-    aloof: '*barely acknowledges you* Hmm.',
-    friendly: 'Hello there! Lovely party, isn\'t it? How may I help you?'
-  };
-
-  // Simple dialogue for NPCs without rich dialogue
-  if (!npc.hasRichDialogue) {
-    return getSimpleDialogue(npc);
-  }
-
-  // Create dynamic dialogue based on NPC knowledge
-  const nodes: Record<string, DialogueNode> = {
-    start: {
-      id: 'start',
-      speaker: npc.name,
-      text: greetings[npc.personality],
-      choices: generateMainChoices(npc, gameState)
-    },
-    ask_about_guests: {
-      id: 'ask_about_guests',
-      speaker: 'player',
-      text: 'Have you noticed anything interesting about the other guests?',
-      autoAdvance: 'guests_response'
-    },
-    guests_response: {
-      id: 'guests_response',
-      speaker: npc.name,
-      text: npc.knownInfo[0] || 'I haven\'t been paying much attention, I\'m afraid.',
-      choices: generateFollowUpChoices(npc, gameState, 'guests')
-    },
-    ask_about_masks: {
-      id: 'ask_about_masks',
-      speaker: 'player',
-      text: 'I\'m trying to find someone specific. Any distinctive masks you\'ve noticed?',
-      autoAdvance: 'masks_response'
-    },
-    masks_response: {
-      id: 'masks_response',
-      speaker: npc.name,
-      text: getMaskInfo(npc, gameState),
-      choices: generateFollowUpChoices(npc, gameState, 'masks')
-    },
-    ask_about_locations: {
-      id: 'ask_about_locations',
-      speaker: 'player',
-      text: 'Where do people tend to gather at this party?',
-      autoAdvance: 'locations_response'
-    },
-    locations_response: {
-      id: 'locations_response',
-      speaker: npc.name,
-      text: getLocationInfo(npc),
-      choices: generateFollowUpChoices(npc, gameState, 'locations')
-    },
-    ask_about_behavior: {
-      id: 'ask_about_behavior',
-      speaker: 'player',
-      text: 'Anyone acting strangely tonight?',
-      autoAdvance: 'behavior_response'
-    },
-    behavior_response: {
-      id: 'behavior_response',
-      speaker: npc.name,
-      text: getBehaviorInfo(npc),
-      choices: generateFollowUpChoices(npc, gameState, 'behavior')
-    },
-    threaten: {
-      id: 'threaten',
-      speaker: 'player',
-      text: '*moves closer menacingly* I think you know more than you\'re telling me...',
-      autoAdvance: 'threaten_response'
-    },
-    threaten_response: {
-      id: 'threaten_response',
-      speaker: npc.name,
-      text: npc.personality === 'nervous'
-        ? '*trembles* Please, I\'ll tell you what I know! ' + (npc.secrets[0] || 'I don\'t know anything else!')
-        : 'Are you threatening me? At a party? How gauche. *backs away*',
-      choices: [
-        { text: 'Leave them be', nextNodeId: 'exit', suspicionChange: npc.personality === 'nervous' ? 5 : 15 }
-      ]
-    },
-    compliment: {
-      id: 'compliment',
-      speaker: 'player',
-      text: 'That\'s a lovely mask you\'re wearing. It suits you.',
-      autoAdvance: 'compliment_response'
-    },
-    compliment_response: {
-      id: 'compliment_response',
-      speaker: npc.name,
-      text: npc.personality === 'friendly' || npc.personality === 'gossipy'
-        ? '*smiles* How kind! Speaking of masks, have you seen the others? So varied tonight!'
-        : 'Thank you. Yours is... adequate.',
-      choices: generateFollowUpChoices(npc, gameState, 'compliment')
-    },
-    farewell: {
-      id: 'farewell',
-      speaker: 'player',
-      text: 'Thank you for your time. Enjoy the party.',
-      autoAdvance: 'farewell_response'
-    },
-    farewell_response: {
-      id: 'farewell_response',
-      speaker: npc.name,
-      text: getFarewellResponse(npc),
-      choices: []
-    }
-  };
-
-  return {
-    startNodeId: 'start',
-    nodes
-  };
+interface PlaceholderContext {
+  npc: NPCData;
+  gameState: GameState;
 }
 
-function generateMainChoices(npc: NPCData, _gameState: GameState): DialogueChoice[] {
-  const choices: DialogueChoice[] = [
-    {
-      text: 'Ask about other guests',
-      nextNodeId: 'ask_about_guests'
-    },
-    {
-      text: 'Ask about masks',
-      nextNodeId: 'ask_about_masks'
-    },
-    {
-      text: 'Ask about where people gather',
-      nextNodeId: 'ask_about_locations'
-    },
-    {
-      text: 'Ask if anyone is acting strangely',
-      nextNodeId: 'ask_about_behavior'
-    }
-  ];
+// Process placeholders in text strings
+function processPlaceholder(text: string, context: PlaceholderContext): string {
+  const { npc } = context;
 
-  // Add personality-specific options
-  if (npc.personality === 'nervous') {
-    choices.push({
-      text: 'Threaten them *risky*',
-      nextNodeId: 'threaten',
-      suspicionChange: 10
-    });
+  // Handle {{npc.name}}
+  text = text.replace(/\{\{npc\.name\}\}/g, npc.name);
+
+  // Handle {{npc.secret}}
+  text = text.replace(/\{\{npc\.secret\}\}/g, npc.secrets[0] || "I don't know anything else!");
+
+  // Handle {{personality:key}} - look up from templates
+  text = text.replace(/\{\{personality:(\w+)\}\}/g, (_match, key) => {
+    const templates = dialogueData.templates as Record<string, Record<string, string>>;
+    if (templates[key] && templates[key][npc.personality]) {
+      return templates[key][npc.personality];
+    }
+    return text;
+  });
+
+  return text;
+}
+
+// Get mask info based on NPC's knowledge or personality default
+function getMaskInfo(npc: NPCData): string {
+  const info = npc.knownInfo.find(i => i.toLowerCase().includes('mask'));
+  if (info) return info;
+
+  const templates = dialogueData.templates as Record<string, Record<string, string>>;
+  return templates.maskResponses[npc.personality];
+}
+
+// Get location info based on NPC's knowledge
+function getLocationInfo(npc: NPCData): string {
+  const locationDescriptions = dialogueData.locationDescriptions as Record<string, string>;
+
+  const info = npc.knownInfo.find(i =>
+    i.toLowerCase().includes('garden') ||
+    i.toLowerCase().includes('library') ||
+    i.toLowerCase().includes('cellar') ||
+    i.toLowerCase().includes('ballroom')
+  );
+
+  if (info) {
+    return `${locationDescriptions[npc.frequentedRoom]} ${info}`;
   }
+
+  return locationDescriptions[npc.frequentedRoom];
+}
+
+// Get behavior info based on NPC's knowledge or personality default
+function getBehaviorInfo(npc: NPCData): string {
+  const info = npc.knownInfo.find(i =>
+    i.toLowerCase().includes('nervous') ||
+    i.toLowerCase().includes('confident') ||
+    i.toLowerCase().includes('secretive') ||
+    i.toLowerCase().includes('friendly') ||
+    i.toLowerCase().includes('aloof') ||
+    i.toLowerCase().includes('acting')
+  );
+
+  if (info) return info;
+
+  const templates = dialogueData.templates as Record<string, Record<string, string>>;
+  return templates.behaviorResponses[npc.personality];
+}
+
+// Get threat response based on personality
+function getThreatResponse(npc: NPCData): string {
+  const templates = dialogueData.templates as Record<string, Record<string, string>>;
+
+  if (npc.personality === 'nervous') {
+    let response = templates.threatResponses.nervous;
+    response = response.replace('{{npc.secret}}', npc.secrets[0] || "I don't know anything else!");
+    return response;
+  }
+
+  return templates.threatResponses.default;
+}
+
+// Get compliment response based on personality
+function getComplimentResponse(npc: NPCData): string {
+  const templates = dialogueData.templates as Record<string, Record<string, string>>;
 
   if (npc.personality === 'friendly' || npc.personality === 'gossipy') {
-    choices.unshift({
-      text: 'Compliment their mask',
-      nextNodeId: 'compliment'
+    return templates.complimentResponses.friendly;
+  }
+
+  return templates.complimentResponses.default;
+}
+
+// Process dynamic text placeholders for special response types
+function processDynamicText(_nodeId: string, text: string, npc: NPCData): string {
+  switch (text) {
+    case '{{maskInfo}}':
+      return getMaskInfo(npc);
+    case '{{locationInfo}}':
+      return getLocationInfo(npc);
+    case '{{behaviorInfo}}':
+      return getBehaviorInfo(npc);
+    case '{{threatResponse}}':
+      return getThreatResponse(npc);
+    case '{{complimentResponse}}':
+      return getComplimentResponse(npc);
+    case '{{npc.knownInfo}}':
+      return npc.knownInfo[0] || "I haven't been paying much attention, I'm afraid.";
+    default:
+      return text;
+  }
+}
+
+// Generate clue for a topic based on actual target
+function getClueForTopic(topic: string, gameState: GameState): ClueType | undefined {
+  const target = NPC_DATA.find(n => n.id === gameState.targetId);
+  if (!target) return undefined;
+
+  const clueDescriptions = dialogueData.clueDescriptions as Record<string, Record<string, string>>;
+  const clueTemplates = dialogueData.clueTemplates as Record<string, string>;
+
+  if (topic === 'masks') {
+    const description = clueDescriptions.mask[target.mask];
+    return {
+      category: 'mask',
+      description: clueTemplates.mask.replace('{{description}}', description),
+      matchValue: target.mask
+    };
+  }
+
+  if (topic === 'locations') {
+    const description = clueDescriptions.location[target.frequentedRoom];
+    return {
+      category: 'location',
+      description: clueTemplates.location.replace('{{description}}', description),
+      matchValue: target.frequentedRoom
+    };
+  }
+
+  if (topic === 'behavior') {
+    const description = clueDescriptions.behavior[target.personality];
+    return {
+      category: 'behavior',
+      description: clueTemplates.behavior.replace('{{description}}', description),
+      matchValue: target.personality
+    };
+  }
+
+  return undefined;
+}
+
+// Generate main dialogue choices based on NPC personality
+function generateMainChoices(npc: NPCData): DialogueChoice[] {
+  const choices: DialogueChoice[] = [...dialogueData.mainChoices];
+  const specialChoices = dialogueData.specialChoices as Record<string, {
+    text: string;
+    nextNodeId: string;
+    suspicionChange?: number;
+    position?: string;
+    forPersonalities: string[];
+  }>;
+
+  // Add personality-specific options
+  if (specialChoices.threaten.forPersonalities.includes(npc.personality)) {
+    choices.push({
+      text: specialChoices.threaten.text,
+      nextNodeId: specialChoices.threaten.nextNodeId,
+      suspicionChange: specialChoices.threaten.suspicionChange
     });
   }
 
-  // Limit topic choices to 4, then always add Leave option
+  if (specialChoices.compliment.forPersonalities.includes(npc.personality)) {
+    choices.unshift({
+      text: specialChoices.compliment.text,
+      nextNodeId: specialChoices.compliment.nextNodeId
+    });
+  }
+
+  // Limit topic choices to 4, then add Leave option
   const topicChoices = choices.slice(0, 4);
   topicChoices.push({
     text: 'Leave',
@@ -174,11 +197,12 @@ function generateMainChoices(npc: NPCData, _gameState: GameState): DialogueChoic
   return topicChoices;
 }
 
-function generateFollowUpChoices(npc: NPCData, gameState: GameState, topic: string): DialogueChoice[] {
+// Generate follow-up choices with clue revelation
+function generateFollowUpChoices(_npc: NPCData, gameState: GameState, topic: string): DialogueChoice[] {
   const choices: DialogueChoice[] = [];
 
   // Add clue-revealing choice based on topic
-  const clue = getClueForTopic(npc, topic, gameState);
+  const clue = getClueForTopic(topic, gameState);
   if (clue) {
     choices.push({
       text: 'Tell me more about that...',
@@ -200,155 +224,93 @@ function generateFollowUpChoices(npc: NPCData, gameState: GameState, topic: stri
   return choices;
 }
 
-function getMaskInfo(npc: NPCData, _gameState: GameState): string {
-  const info = npc.knownInfo.find(i => i.toLowerCase().includes('mask'));
+// Build dialogue node from JSON template
+function buildNode(
+  nodeId: string,
+  npc: NPCData,
+  gameState: GameState
+): DialogueNode {
+  const jsonNodes = dialogueData.nodes as Record<string, {
+    id: string;
+    speaker: string;
+    text: string;
+    fallbackText?: string;
+    autoAdvance?: string;
+    choicesType?: string;
+    topic?: string;
+  }>;
 
-  if (info) {
-    return info;
-  }
+  const nodeTemplate = jsonNodes[nodeId];
+  const context: PlaceholderContext = { npc, gameState };
 
-  // Generic responses by personality
-  const responses: Record<string, string> = {
-    nervous: 'I try not to stare at people... but yes, many colorful masks tonight.',
-    confident: 'The masks are quite varied. Gold, silver, red, blue... all manner of colors.',
-    secretive: 'I pay attention to faces, not masks.',
-    gossipy: 'Oh yes! There\'s gold, purple, red... the purple one is particularly mysterious!',
-    aloof: 'I haven\'t been looking at masks.',
-    friendly: 'So many beautiful masks! The red ones stand out, and the gold is quite striking.'
+  // Process speaker placeholder
+  const speaker = nodeTemplate.speaker === 'player'
+    ? 'player'
+    : processPlaceholder(nodeTemplate.speaker, context);
+
+  // Process text placeholder
+  let text = processPlaceholder(nodeTemplate.text, context);
+  text = processDynamicText(nodeId, text, npc);
+
+  // Build base node
+  const node: DialogueNode = {
+    id: nodeTemplate.id,
+    speaker,
+    text
   };
 
-  return responses[npc.personality];
+  // Add auto-advance if present
+  if (nodeTemplate.autoAdvance) {
+    node.autoAdvance = nodeTemplate.autoAdvance;
+  }
+
+  // Generate choices based on choicesType
+  if (nodeTemplate.choicesType) {
+    switch (nodeTemplate.choicesType) {
+      case 'main':
+        node.choices = generateMainChoices(npc);
+        break;
+      case 'followUp':
+        node.choices = generateFollowUpChoices(npc, gameState, nodeTemplate.topic || '');
+        break;
+      case 'threatExit':
+        node.choices = [{
+          text: 'Leave them be',
+          nextNodeId: 'exit',
+          suspicionChange: npc.personality === 'nervous' ? 5 : 15
+        }];
+        break;
+      case 'none':
+        node.choices = [];
+        break;
+    }
+  }
+
+  return node;
 }
 
-function getLocationInfo(npc: NPCData): string {
-  const roomDescriptions: Record<string, string> = {
-    ballroom: 'The ballroom is the heart of the party, of course. Most guests mingle there.',
-    garden: 'The garden is peaceful. Some prefer the quiet... or the privacy.',
-    library: 'The library attracts the intellectual types. Or those seeking solitude.',
-    cellar: 'The cellar? Strange place for guests, but some venture there for the wine...'
+export function getDialogueForNPC(npc: NPCData, gameState: GameState): DialogueTree {
+  // Simple dialogue for NPCs without rich dialogue
+  if (!npc.hasRichDialogue) {
+    return getSimpleDialogue(npc);
+  }
+
+  // Build all nodes from JSON templates
+  const nodeIds = Object.keys(dialogueData.nodes);
+  const nodes: Record<string, DialogueNode> = {};
+
+  for (const nodeId of nodeIds) {
+    nodes[nodeId] = buildNode(nodeId, npc, gameState);
+  }
+
+  return {
+    startNodeId: 'start',
+    nodes
   };
-
-  // Mix in what this NPC knows
-  const info = npc.knownInfo.find(i =>
-    i.toLowerCase().includes('garden') ||
-    i.toLowerCase().includes('library') ||
-    i.toLowerCase().includes('cellar') ||
-    i.toLowerCase().includes('ballroom')
-  );
-
-  if (info) {
-    return `${roomDescriptions[npc.frequentedRoom]} ${info}`;
-  }
-
-  return roomDescriptions[npc.frequentedRoom];
-}
-
-function getBehaviorInfo(npc: NPCData): string {
-  const info = npc.knownInfo.find(i =>
-    i.toLowerCase().includes('nervous') ||
-    i.toLowerCase().includes('confident') ||
-    i.toLowerCase().includes('secretive') ||
-    i.toLowerCase().includes('friendly') ||
-    i.toLowerCase().includes('aloof') ||
-    i.toLowerCase().includes('acting')
-  );
-
-  if (info) {
-    return info;
-  }
-
-  const responses: Record<string, string> = {
-    nervous: 'Everyone seems... suspicious to me. But that\'s probably just me.',
-    confident: 'A few guests seem on edge. Nervous types stick out.',
-    secretive: 'I observe, but I don\'t share observations freely.',
-    gossipy: 'Oh my, yes! Some seem nervous, others too confident for their own good!',
-    aloof: 'People act as they always do. Nothing special.',
-    friendly: 'Most are enjoying themselves! A few seem nervous though.'
-  };
-
-  return responses[npc.personality];
-}
-
-function getFarewellResponse(npc: NPCData): string {
-  const responses: Record<string, string> = {
-    nervous: '*relief visible* Yes, you too... *looks around anxiously*',
-    confident: 'Indeed. May fortune favor you this evening.',
-    secretive: '...Be careful.',
-    gossipy: 'Do come back if you hear anything juicy!',
-    aloof: '*nods slightly*',
-    friendly: 'Of course! Don\'t be a stranger!'
-  };
-
-  return responses[npc.personality];
-}
-
-function getClueForTopic(_npc: NPCData, topic: string, gameState: GameState): ClueType | undefined {
-  // Find the actual target
-  const target = NPC_DATA.find(n => n.id === gameState.targetId);
-  if (!target) return undefined;
-
-  // Each topic reveals a clue about the ACTUAL target
-  if (topic === 'masks') {
-    const maskDescriptions: Record<string, string> = {
-      red: 'a crimson mask, like blood',
-      blue: 'a sapphire mask, deep as the sea',
-      green: 'an emerald mask, like the forest',
-      gold: 'a golden mask, gleaming bright',
-      silver: 'a silver mask, like moonlight',
-      purple: 'a purple mask, dark and regal',
-      black: 'a black mask, shrouded in shadow',
-      white: 'a white mask, pale as bone'
-    };
-    return {
-      category: 'mask',
-      description: `The one you seek wears ${maskDescriptions[target.mask]}`,
-      matchValue: target.mask
-    };
-  }
-
-  if (topic === 'locations') {
-    const locationDescriptions: Record<string, string> = {
-      ballroom: 'the ballroom, among the dancers',
-      garden: 'the garden, among the hedges',
-      library: 'the library, among the books',
-      cellar: 'the cellar, in the shadows'
-    };
-    return {
-      category: 'location',
-      description: `Your target frequents ${locationDescriptions[target.frequentedRoom]}`,
-      matchValue: target.frequentedRoom
-    };
-  }
-
-  if (topic === 'behavior') {
-    const behaviorDescriptions: Record<string, string> = {
-      nervous: 'nervous and easily startled',
-      confident: 'confident and self-assured',
-      secretive: 'secretive and guarded',
-      gossipy: 'talkative and gossipy',
-      aloof: 'aloof and distant',
-      friendly: 'friendly and approachable'
-    };
-    return {
-      category: 'behavior',
-      description: `The one you hunt is ${behaviorDescriptions[target.personality]}`,
-      matchValue: target.personality
-    };
-  }
-
-  return undefined;
 }
 
 function getSimpleDialogue(npc: NPCData): DialogueTree {
-  // Simple responses based on personality - these NPCs don't have much to say
-  const simpleResponses: Record<string, string> = {
-    nervous: '*looks around anxiously* I... I\'d rather not talk right now. Please excuse me.',
-    confident: 'I have nothing to discuss with strangers. Good evening.',
-    secretive: '*turns away slightly* I prefer to keep to myself.',
-    gossipy: 'Oh, I\'m just enjoying the atmosphere! Nothing interesting to share, I\'m afraid.',
-    aloof: '*sighs* I\'m not in the mood for conversation.',
-    friendly: 'Lovely party! But I really must be going. Enjoy your evening!'
-  };
+  const simpleResponses = dialogueData.simpleDialogue as Record<string, string>;
 
   return {
     startNodeId: 'start',

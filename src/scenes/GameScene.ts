@@ -41,6 +41,13 @@ export class GameScene extends Phaser.Scene {
     super({ key: 'GameScene' });
   }
 
+  init(): void {
+    // Reset state when scene starts/restarts
+    this.npcs = [];
+    this.corpses = [];
+    this.rooms = new Map();
+  }
+
   create(): void {
     // Initialize game state
     this.gameState = {
@@ -300,5 +307,27 @@ export class GameScene extends Phaser.Scene {
   public addCorpse(x: number, y: number): void {
     const corpse = this.add.sprite(x, y, 'corpse');
     this.corpses.push(corpse);
+  }
+
+  shutdown(): void {
+    // Clean up NPCs
+    this.npcs.forEach(npc => {
+      npc.sprite.destroy();
+      npc.alertIcon?.destroy();
+    });
+
+    // Clean up corpses
+    this.corpses.forEach(corpse => corpse.destroy());
+
+    // Clean up rooms (they have graphics objects)
+    this.rooms.forEach(room => {
+      room.hide();
+    });
+
+    // Stop systems
+    this.timerSystem?.stop();
+
+    // Remove all physics
+    this.physics.world.shutdown();
   }
 }

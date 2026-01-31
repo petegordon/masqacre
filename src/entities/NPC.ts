@@ -43,6 +43,11 @@ export class NPC {
       (32 - bodySize) / 2
     );
 
+    // Hide debug collision box
+    if (this.sprite.body) {
+      (this.sprite.body as Phaser.Physics.Arcade.Body).debugShowBody = false;
+    }
+
     // Random idle time variation
     this.maxIdleTime = 2000 + Math.random() * 3000;
 

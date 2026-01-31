@@ -9,17 +9,18 @@ export const NPC_DATA: NPCData[] = [
     personality: 'confident',
     frequentedRoom: 'ballroom',
     secrets: ['Had an affair with the Countess', 'Owes gambling debts'],
-    knownInfo: ['Lady Vermillion seems nervous tonight', 'The one in green frequents the library']
+    knownInfo: ['Lord Vermillion seems nervous tonight', 'The one in green frequents the library']
   },
   {
-    id: 'lady_vermillion',
-    name: 'Lady Vermillion',
+    id: 'lord_vermillion',
+    name: 'Lord Vermillion',
     mask: 'red',
     personality: 'nervous',
     frequentedRoom: 'ballroom',
     secrets: ['Knows about the host\'s blackmail scheme', 'Witnessed a crime'],
     knownInfo: ['Someone in a purple mask has been acting secretive', 'The gold-masked lord is not to be trusted'],
-    hasRichDialogue: true
+    hasRichDialogue: true,
+    portrait: 'portrait_lord_vermillion'
   },
   {
     id: 'count_moravec',
@@ -38,7 +39,8 @@ export const NPC_DATA: NPCData[] = [
     frequentedRoom: 'ballroom',
     secrets: ['Spreads rumors for political gain'],
     knownInfo: ['Everyone! The black mask stays in the cellar', 'The green one is very aloof'],
-    hasRichDialogue: true
+    hasRichDialogue: true,
+    portrait: 'portrait_duchess_fontaine'
   },
   {
     id: 'sir_blackwood',
@@ -77,7 +79,8 @@ export const NPC_DATA: NPCData[] = [
     frequentedRoom: 'garden',
     secrets: ['Hiding from someone at the party'],
     knownInfo: ['I saw the purple mask sneaking about', 'The library is quiet, but someone lurks there'],
-    hasRichDialogue: true
+    hasRichDialogue: true,
+    portrait: 'portrait_miss_evergreen'
   },
   {
     id: 'professor_crane',
@@ -116,7 +119,8 @@ export const NPC_DATA: NPCData[] = [
     frequentedRoom: 'library',
     secrets: ['Looking for blackmail material'],
     knownInfo: ['I\'ve noticed the green mask seems nervous', 'The cellar holds interesting secrets'],
-    hasRichDialogue: true
+    hasRichDialogue: true,
+    portrait: 'portrait_viscount_azure'
   },
   {
     id: 'miss_violet',
@@ -155,7 +159,8 @@ export const NPC_DATA: NPCData[] = [
     frequentedRoom: 'cellar',
     secrets: ['Watering down the wine'],
     knownInfo: ['I see everyone who sneaks down here. Purple and black masks visit often'],
-    hasRichDialogue: true
+    hasRichDialogue: true,
+    portrait: 'portrait_wine_merchant'
   },
   {
     id: 'servant_maria',

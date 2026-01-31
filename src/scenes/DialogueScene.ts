@@ -15,6 +15,8 @@ export class DialogueScene extends Phaser.Scene {
   private currentNodeId!: string;
   private dialogueTree!: ReturnType<typeof getDialogueForNPC>;
   private selectedChoice = 0;
+  private portrait: Phaser.GameObjects.Image | null = null;
+  private textStartX = -290; // X position for text elements
 
   constructor() {
     super({ key: 'DialogueScene' });
@@ -31,6 +33,9 @@ export class DialogueScene extends Phaser.Scene {
     overlay.fillStyle(0x000000, 0.5);
     overlay.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
+    // Display character portrait if available
+    this.createPortrait();
+
     // Create dialogue box
     this.createDialogueBox();
 
@@ -45,6 +50,25 @@ export class DialogueScene extends Phaser.Scene {
     this.setupInput();
   }
 
+  private createPortrait(): void {
+    // Only show portrait for NPCs that have one
+    if (!this.npc.data.portrait) return;
+
+    // Portrait should be ~97.5% of screen height (75% * 1.3 = 30% bigger)
+    const targetHeight = GAME_HEIGHT * 0.975;
+
+    // Create portrait image on the right side, overlaying the dialogue box
+    this.portrait = this.add.image(GAME_WIDTH - 10, GAME_HEIGHT, this.npc.data.portrait);
+    this.portrait.setOrigin(1, 1); // Anchor to bottom-right
+
+    // Scale to target height while maintaining aspect ratio
+    const scale = targetHeight / this.portrait.height;
+    this.portrait.setScale(scale);
+
+    // Set depth to appear above the dialogue box
+    this.portrait.setDepth(10);
+  }
+
   private createDialogueBox(): void {
     this.dialogueBox = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT - 120);
 
@@ -56,35 +80,40 @@ export class DialogueScene extends Phaser.Scene {
     bg.strokeRect(-380, -110, 760, 220);
     this.dialogueBox.add(bg);
 
-    // NPC portrait area (mask display) - add FIRST so it's behind text
-    const portrait = this.add.graphics();
-    portrait.fillStyle(0x333333, 1);
-    portrait.fillRect(-375, -105, 70, 70);
-    portrait.lineStyle(2, 0x666666);
-    portrait.strokeRect(-375, -105, 70, 70);
-    this.dialogueBox.add(portrait);
+    // NPC portrait area (mask display) - only show if no large portrait
+    if (!this.npc.data.portrait) {
+      const portraitBox = this.add.graphics();
+      portraitBox.fillStyle(0x333333, 1);
+      portraitBox.fillRect(-375, -105, 70, 70);
+      portraitBox.lineStyle(2, 0x666666);
+      portraitBox.strokeRect(-375, -105, 70, 70);
+      this.dialogueBox.add(portraitBox);
 
-    // Mask icon inside portrait
-    const maskColors: Record<string, number> = {
-      red: 0xff4444, blue: 0x4444ff, green: 0x44ff44,
-      gold: 0xffd700, silver: 0xc0c0c0, purple: 0x8844ff,
-      black: 0x444444, white: 0xeeeeee
-    };
-    const mask = this.add.graphics();
-    mask.fillStyle(maskColors[this.npc.data.mask] || 0x888888);
-    mask.fillEllipse(-340, -70, 40, 25);
-    this.dialogueBox.add(mask);
+      // Mask icon inside portrait
+      const maskColors: Record<string, number> = {
+        red: 0xff4444, blue: 0x4444ff, green: 0x44ff44,
+        gold: 0xffd700, silver: 0xc0c0c0, purple: 0x8844ff,
+        black: 0x444444, white: 0xeeeeee
+      };
+      const mask = this.add.graphics();
+      mask.fillStyle(maskColors[this.npc.data.mask] || 0x888888);
+      mask.fillEllipse(-340, -70, 40, 25);
+      this.dialogueBox.add(mask);
+    }
 
-    // Speaker name - positioned to the RIGHT of the portrait
-    this.speakerText = this.add.text(-290, -100, '', {
+    // Speaker name position - store for use in displayChoices
+    this.textStartX = this.npc.data.portrait ? -375 : -290;
+
+    // Speaker name
+    this.speakerText = this.add.text(this.textStartX, -100, '', {
       fontFamily: 'Georgia, serif',
       fontSize: '16px',
       color: '#ffd700'
     });
     this.dialogueBox.add(this.speakerText);
 
-    // Dialogue text - positioned to the RIGHT of the portrait
-    this.dialogueText = this.add.text(-290, -75, '', {
+    // Dialogue text
+    this.dialogueText = this.add.text(this.textStartX, -75, '', {
       fontFamily: 'monospace',
       fontSize: '13px',
       color: '#ffffff',
@@ -121,7 +150,7 @@ export class DialogueScene extends Phaser.Scene {
     const startY = -5;
 
     choices.forEach((choice, index) => {
-      const text = this.add.text(-290, startY + index * 22, `${index + 1}. ${choice.text}`, {
+      const text = this.add.text(this.textStartX, startY + index * 22, `${index + 1}. ${choice.text}`, {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: index === this.selectedChoice ? '#ffd700' : '#aaaaaa'

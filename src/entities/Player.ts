@@ -23,6 +23,11 @@ export class Player {
       (32 - bodySize) / 2
     );
 
+    // Hide debug collision box
+    if (this.sprite.body) {
+      (this.sprite.body as Phaser.Physics.Arcade.Body).debugShowBody = false;
+    }
+
     // Start with idle animation
     this.sprite.play(`${this.textureKey}_idle_down`);
   }

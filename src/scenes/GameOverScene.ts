@@ -166,4 +166,14 @@ export class GameOverScene extends Phaser.Scene {
       this.scene.start('MenuScene');
     });
   }
+
+  shutdown(): void {
+    // Clean up keyboard listeners
+    this.input.keyboard?.off('keydown-SPACE');
+    this.input.keyboard?.off('keydown-ENTER');
+    this.input.keyboard?.off('keydown-ESC');
+
+    // Stop all tweens
+    this.tweens.killAll();
+  }
 }

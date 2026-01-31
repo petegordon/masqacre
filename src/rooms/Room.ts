@@ -3,23 +3,23 @@ import { GameScene } from '../scenes/GameScene';
 import { RoomId, Position } from '../types';
 import { TILE_SIZE, ROOM_WIDTH, ROOM_HEIGHT } from '../config/GameConfig';
 
-// Room-specific decoration configurations
+// Room-specific decoration configurations using furniture sprites
 const ROOM_DECORATIONS: Record<RoomId, { items: string[]; count: number }> = {
   ballroom: {
-    items: ['item_chair1', 'item_chair2', 'item_candle1', 'item_candle2'],
-    count: 6
-  },
-  garden: {
-    items: ['item_bush', 'item_crate'],
+    items: ['furniture_bookcase', 'furniture_chair_forward', 'furniture_chair_right'],
     count: 4
   },
+  garden: {
+    items: ['furniture_chair_forward', 'furniture_chair_right'],
+    count: 3
+  },
   library: {
-    items: ['item_bookcase1', 'item_bookcase2', 'item_bookcase3', 'item_books', 'item_chair1'],
-    count: 8
+    items: ['furniture_bookcase', 'furniture_chair_forward', 'furniture_chair_right'],
+    count: 5
   },
   cellar: {
-    items: ['item_bottle1', 'item_bottle2', 'item_bottle3', 'item_crate', 'item_candle1'],
-    count: 6
+    items: ['furniture_bookcase', 'furniture_chair_forward', 'furniture_chair_right'],
+    count: 3
   }
 };
 
@@ -232,39 +232,6 @@ export class Room {
   }
 
   private setupLibrary(): void {
-    // Bookshelves along walls
-    const shelves = this.scene.add.graphics();
-    shelves.fillStyle(0x8b4513);
-
-    // Left shelves
-    shelves.fillRect(TILE_SIZE * 2, TILE_SIZE * 2, TILE_SIZE * 2, TILE_SIZE * 6);
-    this.createCollisionRect(TILE_SIZE * 2, TILE_SIZE * 2, TILE_SIZE * 2, TILE_SIZE * 6);
-
-    // Right shelves
-    shelves.fillRect(ROOM_WIDTH * TILE_SIZE - TILE_SIZE * 4, TILE_SIZE * 2, TILE_SIZE * 2, TILE_SIZE * 6);
-    this.createCollisionRect(ROOM_WIDTH * TILE_SIZE - TILE_SIZE * 4, TILE_SIZE * 2, TILE_SIZE * 2, TILE_SIZE * 6);
-
-    // Book colors
-    const bookColors = [0xff4444, 0x44ff44, 0x4444ff, 0xffd700, 0x8844ff];
-    for (let i = 0; i < 10; i++) {
-      shelves.fillStyle(bookColors[i % bookColors.length]);
-      shelves.fillRect(
-        TILE_SIZE * 2.2 + (i % 3) * 15,
-        TILE_SIZE * 2.5 + Math.floor(i / 3) * 50,
-        10, 40
-      );
-    }
-
-    shelves.setDepth(1);
-    this.decorations.push(shelves);
-
-    // Reading desk
-    const desk = this.scene.add.graphics();
-    desk.fillStyle(0x654321);
-    desk.fillRect(ROOM_WIDTH * TILE_SIZE / 2 - 40, ROOM_HEIGHT * TILE_SIZE / 2 - 20, 80, 40);
-    desk.setDepth(0.5);
-    this.decorations.push(desk);
-
     // Door back to ballroom
     this.doors = [
       {
@@ -283,35 +250,6 @@ export class Room {
     // Darker atmosphere - tint the floor
     this.floor.fillStyle(0x333333, 0.3);
     this.floor.fillRect(0, 0, ROOM_WIDTH * TILE_SIZE, ROOM_HEIGHT * TILE_SIZE);
-
-    // Wine barrels
-    const barrels = this.scene.add.graphics();
-    barrels.fillStyle(0x8b4513);
-
-    const barrelPositions = [
-      { x: TILE_SIZE * 3, y: TILE_SIZE * 3 },
-      { x: TILE_SIZE * 5, y: TILE_SIZE * 3 },
-      { x: TILE_SIZE * 3, y: TILE_SIZE * 6 },
-      { x: ROOM_WIDTH * TILE_SIZE - TILE_SIZE * 5, y: TILE_SIZE * 5 }
-    ];
-
-    barrelPositions.forEach(pos => {
-      barrels.fillCircle(pos.x, pos.y, 20);
-      barrels.lineStyle(2, 0x5c3317);
-      barrels.strokeCircle(pos.x, pos.y, 20);
-      this.createCollisionRect(pos.x - 20, pos.y - 20, 40, 40);
-    });
-
-    barrels.setDepth(1);
-    this.decorations.push(barrels);
-
-    // Crates
-    const crates = this.scene.add.graphics();
-    crates.fillStyle(0x654321);
-    crates.fillRect(ROOM_WIDTH * TILE_SIZE - TILE_SIZE * 4, TILE_SIZE * 10, TILE_SIZE * 2, TILE_SIZE * 2);
-    this.createCollisionRect(ROOM_WIDTH * TILE_SIZE - TILE_SIZE * 4, TILE_SIZE * 10, TILE_SIZE * 2, TILE_SIZE * 2);
-    crates.setDepth(1);
-    this.decorations.push(crates);
 
     // Secret stairway back to ballroom
     this.doors = [
@@ -423,9 +361,9 @@ export class Room {
             height: itemHeight * (sprite.scaleY || 1)
           });
 
-          // Add collision for larger items (bookcases, cabinets)
-          if (itemKey.includes('bookcase') || itemKey.includes('cabinet') || itemKey.includes('couch')) {
-            this.createCollisionRect(x, y, itemWidth, itemHeight);
+          // Add collision for furniture items
+          if (itemKey.startsWith('furniture_')) {
+            this.createCollisionRect(x, y, itemWidth * (sprite.scaleX || 1), itemHeight * (sprite.scaleY || 1));
           }
 
           placed = true;
