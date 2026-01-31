@@ -3,6 +3,26 @@ import { GameScene } from '../scenes/GameScene';
 import { RoomId, Position } from '../types';
 import { TILE_SIZE, ROOM_WIDTH, ROOM_HEIGHT } from '../config/GameConfig';
 
+// Room-specific decoration configurations
+const ROOM_DECORATIONS: Record<RoomId, { items: string[]; count: number }> = {
+  ballroom: {
+    items: ['item_chair1', 'item_chair2', 'item_candle1', 'item_candle2'],
+    count: 6
+  },
+  garden: {
+    items: ['item_bush', 'item_crate'],
+    count: 4
+  },
+  library: {
+    items: ['item_bookcase1', 'item_bookcase2', 'item_bookcase3', 'item_books', 'item_chair1'],
+    count: 8
+  },
+  cellar: {
+    items: ['item_bottle1', 'item_bottle2', 'item_bottle3', 'item_crate', 'item_candle1'],
+    count: 6
+  }
+};
+
 interface DoorData {
   x: number;
   y: number;
@@ -173,6 +193,7 @@ export class Room {
     ];
 
     this.createDoorVisuals();
+    this.placeRandomDecorations();
   }
 
   private setupGarden(): void {
@@ -207,6 +228,7 @@ export class Room {
     ];
 
     this.createDoorVisuals();
+    this.placeRandomDecorations();
   }
 
   private setupLibrary(): void {
@@ -254,6 +276,7 @@ export class Room {
     ];
 
     this.createDoorVisuals();
+    this.placeRandomDecorations();
   }
 
   private setupCellar(): void {
@@ -301,6 +324,7 @@ export class Room {
     ];
 
     this.createDoorVisuals();
+    this.placeRandomDecorations();
   }
 
   private createDoorVisuals(): void {
@@ -314,6 +338,100 @@ export class Room {
       doorGraphic.setDepth(2);
       this.decorations.push(doorGraphic);
     });
+  }
+
+  private placeRandomDecorations(): void {
+    const config = ROOM_DECORATIONS[this.id];
+    if (!config) return;
+
+    const margin = TILE_SIZE * 2.5;
+    const roomWidth = ROOM_WIDTH * TILE_SIZE;
+    const roomHeight = ROOM_HEIGHT * TILE_SIZE;
+
+    // Track placed positions to avoid overlap
+    const placedPositions: { x: number; y: number; width: number; height: number }[] = [];
+
+    // Also avoid door areas
+    this.doors.forEach(door => {
+      placedPositions.push({
+        x: door.x - 40,
+        y: door.y - 40,
+        width: 80,
+        height: 80
+      });
+    });
+
+    for (let i = 0; i < config.count; i++) {
+      const itemKey = config.items[Math.floor(Math.random() * config.items.length)];
+
+      // Check if texture exists
+      if (!this.scene.textures.exists(itemKey)) {
+        continue;
+      }
+
+      // Try to find a valid position
+      let attempts = 0;
+      let placed = false;
+
+      while (attempts < 20 && !placed) {
+        attempts++;
+
+        // Random position within room bounds
+        const x = margin + Math.random() * (roomWidth - margin * 2);
+        const y = margin + Math.random() * (roomHeight - margin * 2);
+
+        // Get texture dimensions for collision check
+        const texture = this.scene.textures.get(itemKey);
+        const frame = texture.get();
+        const itemWidth = frame.width;
+        const itemHeight = frame.height;
+
+        // Check for overlap with existing decorations
+        let overlaps = false;
+        for (const pos of placedPositions) {
+          if (
+            x < pos.x + pos.width + 10 &&
+            x + itemWidth + 10 > pos.x &&
+            y < pos.y + pos.height + 10 &&
+            y + itemHeight + 10 > pos.y
+          ) {
+            overlaps = true;
+            break;
+          }
+        }
+
+        if (!overlaps) {
+          // Place the decoration
+          const sprite = this.scene.add.sprite(x, y, itemKey);
+          sprite.setOrigin(0, 0);
+          sprite.setDepth(1);
+
+          // Scale up small items for visibility
+          if (itemWidth < 16) {
+            sprite.setScale(2);
+          } else if (itemWidth < 32) {
+            sprite.setScale(1.5);
+          }
+
+          this.decorations.push(sprite);
+
+          // Track position
+          placedPositions.push({
+            x,
+            y,
+            width: itemWidth * (sprite.scaleX || 1),
+            height: itemHeight * (sprite.scaleY || 1)
+          });
+
+          // Add collision for larger items (bookcases, cabinets)
+          if (itemKey.includes('bookcase') || itemKey.includes('cabinet') || itemKey.includes('couch')) {
+            this.createCollisionRect(x, y, itemWidth, itemHeight);
+          }
+
+          placed = true;
+        }
+      }
+    }
   }
 
   getDoors(): DoorData[] {

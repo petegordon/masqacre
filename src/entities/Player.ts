@@ -1,48 +1,30 @@
 import Phaser from 'phaser';
 import { GameScene } from '../scenes/GameScene';
-import { PLAYER_SPEED, PLAYER_SNEAK_SPEED, TILE_SIZE } from '../config/GameConfig';
+import { PLAYER_SPEED, PLAYER_SNEAK_SPEED } from '../config/GameConfig';
 
 export class Player {
   public sprite: Phaser.Physics.Arcade.Sprite;
   public isSneaking = false;
   public facingDirection: 'up' | 'down' | 'left' | 'right' = 'down';
   private frozen = false;
-  private visual: Phaser.GameObjects.Graphics;
+  private textureKey = 'char_player';
 
   constructor(scene: GameScene, x: number, y: number) {
-    // Create a simple graphics texture for the player if it doesn't exist
-    if (!scene.textures.exists('player_sprite')) {
-      const graphics = scene.add.graphics();
-      graphics.fillStyle(0x4a6fa5);
-      graphics.fillRect(4, 4, 24, 24);
-      graphics.fillStyle(0x2d4a6f);
-      graphics.fillRect(8, 8, 16, 8);
-      graphics.generateTexture('player_sprite', TILE_SIZE, TILE_SIZE);
-      graphics.destroy();
-    }
-
-    // Create sprite
-    this.sprite = scene.physics.add.sprite(x, y, 'player_sprite');
+    // Create sprite using the animated character spritesheet (32x32)
+    this.sprite = scene.physics.add.sprite(x, y, this.textureKey, 1);
     this.sprite.setCollideWorldBounds(true);
     this.sprite.setDepth(10);
 
-    // Set up physics body
-    this.sprite.body?.setSize(TILE_SIZE - 8, TILE_SIZE - 8);
-    this.sprite.body?.setOffset(4, 4);
+    // Set up physics body for 32x32 sprite
+    const bodySize = 24; // Slightly smaller than sprite for better collision
+    this.sprite.body?.setSize(bodySize, bodySize);
+    this.sprite.body?.setOffset(
+      (32 - bodySize) / 2,
+      (32 - bodySize) / 2
+    );
 
-    // Create a visible graphics overlay for the player
-    this.visual = scene.add.graphics();
-    this.updateVisual();
-  }
-
-  private updateVisual(): void {
-    this.visual.clear();
-    this.visual.fillStyle(0x4a6fa5);
-    this.visual.fillRect(this.sprite.x - 12, this.sprite.y - 12, 24, 24);
-    this.visual.fillStyle(0x2d4a6f);
-    this.visual.fillRect(this.sprite.x - 8, this.sprite.y - 12, 16, 8);
-    this.visual.setDepth(10);
-    this.visual.setAlpha(this.isSneaking ? 0.7 : 1);
+    // Start with idle animation
+    this.sprite.play(`${this.textureKey}_idle_down`);
   }
 
   update(
@@ -52,7 +34,6 @@ export class Player {
   ): void {
     if (this.frozen) {
       this.sprite.setVelocity(0, 0);
-      this.updateVisual();
       return;
     }
 
@@ -63,21 +44,22 @@ export class Player {
     // Calculate velocity
     let velocityX = 0;
     let velocityY = 0;
+    let newDirection = this.facingDirection;
 
     if (cursors.left.isDown || wasd.A.isDown) {
       velocityX = -speed;
-      this.facingDirection = 'left';
+      newDirection = 'left';
     } else if (cursors.right.isDown || wasd.D.isDown) {
       velocityX = speed;
-      this.facingDirection = 'right';
+      newDirection = 'right';
     }
 
     if (cursors.up.isDown || wasd.W.isDown) {
       velocityY = -speed;
-      this.facingDirection = 'up';
+      newDirection = 'up';
     } else if (cursors.down.isDown || wasd.S.isDown) {
       velocityY = speed;
-      this.facingDirection = 'down';
+      newDirection = 'down';
     }
 
     // Normalize diagonal movement
@@ -88,13 +70,32 @@ export class Player {
 
     this.sprite.setVelocity(velocityX, velocityY);
 
-    // Update visual representation
-    this.updateVisual();
+    // Update animation based on movement
+    const isMoving = velocityX !== 0 || velocityY !== 0;
+
+    if (isMoving) {
+      this.facingDirection = newDirection;
+      const walkAnim = `${this.textureKey}_walk_${this.facingDirection}`;
+      if (this.sprite.anims.currentAnim?.key !== walkAnim) {
+        this.sprite.play(walkAnim);
+      }
+    } else {
+      const idleAnim = `${this.textureKey}_idle_${this.facingDirection}`;
+      if (this.sprite.anims.currentAnim?.key !== idleAnim) {
+        this.sprite.play(idleAnim);
+      }
+    }
+
+    // Adjust alpha when sneaking
+    this.sprite.setAlpha(this.isSneaking ? 0.7 : 1);
   }
 
   freeze(): void {
     this.frozen = true;
     this.sprite.setVelocity(0, 0);
+    // Play idle animation when frozen
+    const idleAnim = `${this.textureKey}_idle_${this.facingDirection}`;
+    this.sprite.play(idleAnim);
   }
 
   unfreeze(): void {

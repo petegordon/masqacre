@@ -1,19 +1,7 @@
 import Phaser from 'phaser';
 import { GameScene } from '../scenes/GameScene';
 import { NPCData, NPCState, RoomId, Position } from '../types';
-import { NPC_SPEED, NPC_WANDER_SPEED, TILE_SIZE } from '../config/GameConfig';
-
-// Mask colors
-const MASK_COLORS: Record<string, number> = {
-  red: 0xff4444,
-  blue: 0x4444ff,
-  green: 0x44ff44,
-  gold: 0xffd700,
-  silver: 0xc0c0c0,
-  purple: 0x8844ff,
-  black: 0x333333,
-  white: 0xeeeeee
-};
+import { NPC_SPEED, NPC_WANDER_SPEED } from '../config/GameConfig';
 
 export class NPC {
   public sprite: Phaser.Physics.Arcade.Sprite;
@@ -25,12 +13,12 @@ export class NPC {
   public alertIcon: Phaser.GameObjects.Graphics | null = null;
 
   private scene: GameScene;
-  private visual: Phaser.GameObjects.Graphics;
+  private textureKey: string;
   private wanderTarget: Position | null = null;
   private stateTimer = 0;
   private idleTime = 0;
   private maxIdleTime: number;
-  private maskColor: number;
+  private facingDirection: 'up' | 'down' | 'left' | 'right' = 'down';
   private targetIndicator: Phaser.GameObjects.Graphics | null = null;
   private isMarkedAsTarget = false;
 
@@ -38,35 +26,28 @@ export class NPC {
     this.scene = scene;
     this.data = data;
     this.currentRoom = data.frequentedRoom;
-    this.maskColor = MASK_COLORS[data.mask] || 0x888888;
 
-    // Create a texture for this NPC if needed
-    const textureKey = `npc_sprite_${data.mask}`;
-    if (!scene.textures.exists(textureKey)) {
-      const graphics = scene.add.graphics();
-      graphics.fillStyle(0x808080);
-      graphics.fillRect(4, 4, 24, 24);
-      graphics.fillStyle(this.maskColor);
-      graphics.fillRect(8, 8, 16, 8);
-      graphics.generateTexture(textureKey, TILE_SIZE, TILE_SIZE);
-      graphics.destroy();
-    }
+    // Use the color-swapped texture based on mask color
+    this.textureKey = `char_${data.mask}`;
 
-    // Create sprite
-    this.sprite = scene.physics.add.sprite(x, y, textureKey);
+    // Create sprite (32x32)
+    this.sprite = scene.physics.add.sprite(x, y, this.textureKey, 1);
     this.sprite.setCollideWorldBounds(true);
     this.sprite.setDepth(5);
 
-    // Physics body
-    this.sprite.body?.setSize(TILE_SIZE - 8, TILE_SIZE - 8);
-    this.sprite.body?.setOffset(4, 4);
+    // Physics body for 32x32 sprite
+    const bodySize = 24; // Slightly smaller than sprite for better collision
+    this.sprite.body?.setSize(bodySize, bodySize);
+    this.sprite.body?.setOffset(
+      (32 - bodySize) / 2,
+      (32 - bodySize) / 2
+    );
 
     // Random idle time variation
     this.maxIdleTime = 2000 + Math.random() * 3000;
 
-    // Create visible graphics overlay
-    this.visual = scene.add.graphics();
-    this.updateVisual();
+    // Start with idle animation
+    this.sprite.play(`${this.textureKey}_idle_down`);
 
     // Create alert icon
     this.alertIcon = scene.add.graphics();
@@ -79,15 +60,6 @@ export class NPC {
     }
   }
 
-  private updateVisual(): void {
-    this.visual.clear();
-    this.visual.fillStyle(0x808080);
-    this.visual.fillRect(this.sprite.x - 12, this.sprite.y - 12, 24, 24);
-    this.visual.fillStyle(this.maskColor);
-    this.visual.fillRect(this.sprite.x - 8, this.sprite.y - 12, 16, 8);
-    this.visual.setDepth(5);
-  }
-
   private updateAlertIcon(): void {
     if (!this.alertIcon) return;
 
@@ -96,15 +68,15 @@ export class NPC {
 
     if (this.state === 'curious') {
       this.alertIcon.fillStyle(0xffff00);
-      this.alertIcon.fillCircle(this.sprite.x, this.sprite.y - 24, 8);
+      this.alertIcon.fillCircle(this.sprite.x, this.sprite.y - 30, 8);
       this.alertIcon.setVisible(true);
     } else if (this.state === 'suspicious') {
       this.alertIcon.fillStyle(0xffaa00);
-      this.alertIcon.fillCircle(this.sprite.x, this.sprite.y - 24, 8);
+      this.alertIcon.fillCircle(this.sprite.x, this.sprite.y - 30, 8);
       this.alertIcon.setVisible(true);
     } else if (this.state === 'alarmed') {
       this.alertIcon.fillStyle(0xff0000);
-      this.alertIcon.fillCircle(this.sprite.x, this.sprite.y - 24, 8);
+      this.alertIcon.fillCircle(this.sprite.x, this.sprite.y - 30, 8);
       this.alertIcon.setVisible(true);
     } else {
       this.alertIcon.setVisible(false);
@@ -162,9 +134,9 @@ export class NPC {
   update(delta: number): void {
     if (!this.isAlive) return;
 
-    this.updateVisual();
     this.updateAlertIcon();
     this.updateTargetIndicator();
+    this.updateAnimation();
     this.stateTimer += delta;
 
     switch (this.state) {
@@ -186,6 +158,30 @@ export class NPC {
       case 'alarmed':
         this.updateAlarmed(delta);
         break;
+    }
+  }
+
+  private updateAnimation(): void {
+    const body = this.sprite.body as Phaser.Physics.Arcade.Body;
+    const isMoving = body.velocity.x !== 0 || body.velocity.y !== 0;
+
+    // Determine facing direction from velocity
+    if (isMoving) {
+      if (Math.abs(body.velocity.x) > Math.abs(body.velocity.y)) {
+        this.facingDirection = body.velocity.x > 0 ? 'right' : 'left';
+      } else {
+        this.facingDirection = body.velocity.y > 0 ? 'down' : 'up';
+      }
+
+      const walkAnim = `${this.textureKey}_walk_${this.facingDirection}`;
+      if (this.sprite.anims.currentAnim?.key !== walkAnim) {
+        this.sprite.play(walkAnim);
+      }
+    } else {
+      const idleAnim = `${this.textureKey}_idle_${this.facingDirection}`;
+      if (this.sprite.anims.currentAnim?.key !== idleAnim) {
+        this.sprite.play(idleAnim);
+      }
     }
   }
 
@@ -314,16 +310,15 @@ export class NPC {
   die(): void {
     this.isAlive = false;
     this.sprite.setVisible(false);
-    this.visual.setVisible(false);
     this.sprite.body?.enable && (this.sprite.body.enable = false);
     this.alertIcon?.setVisible(false);
+    this.targetIndicator?.setVisible(false);
 
     this.scene.addCorpse(this.sprite.x, this.sprite.y);
   }
 
   hide(): void {
     this.sprite.setVisible(false);
-    this.visual.setVisible(false);
     this.sprite.body?.enable && (this.sprite.body.enable = false);
     this.alertIcon?.setVisible(false);
     this.targetIndicator?.setVisible(false);
@@ -332,7 +327,6 @@ export class NPC {
   show(): void {
     if (this.isAlive) {
       this.sprite.setVisible(true);
-      this.visual.setVisible(true);
       this.sprite.body?.enable !== undefined && (this.sprite.body.enable = true);
       if (this.isMarkedAsTarget) {
         this.targetIndicator?.setVisible(true);
@@ -374,8 +368,17 @@ export class NPC {
     const playerPos = this.scene.player.getPosition();
     const body = this.sprite.body as Phaser.Physics.Arcade.Body;
 
+    // If NPC is standing still, check based on their facing direction
     if (body.velocity.x === 0 && body.velocity.y === 0) {
-      return false;
+      const dx = playerPos.x - this.sprite.x;
+      const dy = playerPos.y - this.sprite.y;
+
+      switch (this.facingDirection) {
+        case 'up': return dy > 0;
+        case 'down': return dy < 0;
+        case 'left': return dx > 0;
+        case 'right': return dx < 0;
+      }
     }
 
     const dx = playerPos.x - this.sprite.x;
