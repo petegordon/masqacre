@@ -122,30 +122,41 @@ export class NPC {
   private updateTargetIndicator(): void {
     if (!this.targetIndicator || !this.isMarkedAsTarget) return;
 
+    // Don't draw if not visible (in different room)
+    if (!this.sprite.visible) {
+      this.targetIndicator.clear();
+      return;
+    }
+
     // Pulsing effect based on time
-    const pulse = Math.sin(Date.now() / 300) * 0.3 + 1;
+    const pulse = Math.sin(Date.now() / 400) * 0.15 + 1;
+    const alpha = Math.sin(Date.now() / 300) * 0.3 + 0.7;
 
     this.targetIndicator.clear();
 
-    // Outer glow ring
-    this.targetIndicator.lineStyle(4, 0xff0000, 0.6 * pulse);
-    this.targetIndicator.strokeCircle(this.sprite.x, this.sprite.y, 22 * pulse);
+    // Simple red targeting reticle
+    this.targetIndicator.lineStyle(3, 0xff0000, alpha);
+    this.targetIndicator.strokeCircle(this.sprite.x, this.sprite.y, 20 * pulse);
 
-    // Inner ring
-    this.targetIndicator.lineStyle(2, 0xffff00, 0.8);
-    this.targetIndicator.strokeCircle(this.sprite.x, this.sprite.y, 18);
+    // Corner brackets instead of full crosshairs
+    const r = 24 * pulse;
+    const len = 6;
 
-    // Crosshair marks
-    this.targetIndicator.lineStyle(2, 0xff0000, 0.9);
-    const size = 8;
-    // Top
-    this.targetIndicator.lineBetween(this.sprite.x, this.sprite.y - 25, this.sprite.x, this.sprite.y - 25 - size);
-    // Bottom
-    this.targetIndicator.lineBetween(this.sprite.x, this.sprite.y + 25, this.sprite.x, this.sprite.y + 25 + size);
-    // Left
-    this.targetIndicator.lineBetween(this.sprite.x - 25, this.sprite.y, this.sprite.x - 25 - size, this.sprite.y);
-    // Right
-    this.targetIndicator.lineBetween(this.sprite.x + 25, this.sprite.y, this.sprite.x + 25 + size, this.sprite.y);
+    // Top-left corner
+    this.targetIndicator.lineBetween(this.sprite.x - r, this.sprite.y - r + len, this.sprite.x - r, this.sprite.y - r);
+    this.targetIndicator.lineBetween(this.sprite.x - r, this.sprite.y - r, this.sprite.x - r + len, this.sprite.y - r);
+
+    // Top-right corner
+    this.targetIndicator.lineBetween(this.sprite.x + r - len, this.sprite.y - r, this.sprite.x + r, this.sprite.y - r);
+    this.targetIndicator.lineBetween(this.sprite.x + r, this.sprite.y - r, this.sprite.x + r, this.sprite.y - r + len);
+
+    // Bottom-left corner
+    this.targetIndicator.lineBetween(this.sprite.x - r, this.sprite.y + r - len, this.sprite.x - r, this.sprite.y + r);
+    this.targetIndicator.lineBetween(this.sprite.x - r, this.sprite.y + r, this.sprite.x - r + len, this.sprite.y + r);
+
+    // Bottom-right corner
+    this.targetIndicator.lineBetween(this.sprite.x + r - len, this.sprite.y + r, this.sprite.x + r, this.sprite.y + r);
+    this.targetIndicator.lineBetween(this.sprite.x + r, this.sprite.y + r - len, this.sprite.x + r, this.sprite.y + r);
   }
 
   update(delta: number): void {
