@@ -95,6 +95,19 @@ export class GameOverScene extends Phaser.Scene {
     });
     menuButton.on('pointerdown', () => this.goToMenu());
 
+    // Credits (ordered by last name)
+    const credits = this.add.text(GAME_WIDTH / 2, 540, [
+      'Credits',
+      'Kylie Egger  •  CJ Gonzales  •  Pete Gordon  •  Chris Smith'
+    ], {
+      fontFamily: 'Georgia, serif',
+      fontSize: '12px',
+      color: '#555555',
+      align: 'center',
+      lineSpacing: 4
+    });
+    credits.setOrigin(0.5);
+
     // Keyboard shortcuts
     this.input.keyboard?.on('keydown-SPACE', () => this.restartGame());
     this.input.keyboard?.on('keydown-ENTER', () => this.restartGame());

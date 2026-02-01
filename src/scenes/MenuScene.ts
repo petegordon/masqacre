@@ -49,8 +49,16 @@ export class MenuScene extends Phaser.Scene {
     });
     instructionText.setOrigin(0.5);
 
+    // Credits
+    const credits = this.add.text(GAME_WIDTH / 2, 450, 'By: Chris Smith, CJ Gonzales, Kylie Egger, Pete Gordon', {
+      fontFamily: 'Georgia, serif',
+      fontSize: '14px',
+      color: '#666666'
+    });
+    credits.setOrigin(0.5);
+
     // Start button
-    const startButton = this.add.text(GAME_WIDTH / 2, 500, '[ START GAME ]', {
+    const startButton = this.add.text(GAME_WIDTH / 2, 520, '[ START GAME ]', {
       fontFamily: 'monospace',
       fontSize: '28px',
       color: '#ffffff',

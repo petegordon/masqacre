@@ -51,6 +51,9 @@ export class BootScene extends Phaser.Scene {
     this.load.image('portrait_miss_evergreen', 'assets/characters/green_miss_evergreen.png');
     this.load.image('portrait_viscount_azure', 'assets/characters/blue_viscount_azure.png');
     this.load.image('portrait_wine_merchant', 'assets/characters/yellow_wine_merchant.png');
+
+    // Load splash logo
+    this.load.image('logo', 'assets/masqacre_logo.png');
   }
 
   create(): void {
@@ -63,8 +66,36 @@ export class BootScene extends Phaser.Scene {
     // Create animations
     this.createAnimations();
 
-    // Transition to menu
-    this.scene.start('MenuScene');
+    // Show splash logo
+    this.showSplashScreen();
+  }
+
+  private showSplashScreen(): void {
+    const width = this.cameras.main.width;
+    const height = this.cameras.main.height;
+
+    // Black background
+    const bg = this.add.rectangle(width / 2, height / 2, width, height, 0x000000);
+    bg.setDepth(0);
+
+    // Add logo centered on screen
+    const logo = this.add.image(width / 2, height / 2, 'logo');
+    logo.setDepth(1);
+
+    // Scale logo to fit nicely (max 80% of screen width/height)
+    const maxWidth = width * 0.8;
+    const maxHeight = height * 0.8;
+    const scale = Math.min(maxWidth / logo.width, maxHeight / logo.height, 1);
+    logo.setScale(scale);
+
+    // Start with logo visible, then fade out after a delay
+    this.time.delayedCall(2000, () => {
+      this.cameras.main.fadeOut(1000, 0, 0, 0);
+
+      this.cameras.main.once('camerafadeoutcomplete', () => {
+        this.scene.start('MenuScene');
+      });
+    });
   }
 
   private createCharacterVariants(): void {
