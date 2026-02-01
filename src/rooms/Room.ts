@@ -10,7 +10,7 @@ const ROOM_DECORATIONS: Record<RoomId, { items: string[]; count: number }> = {
     count: 4
   },
   garden: {
-    items: ['furniture_chair_forward', 'furniture_chair_right'],
+    items: ['furniture_statue', 'furniture_chair_forward', 'furniture_chair_right'],
     count: 3
   },
   library: {
@@ -42,6 +42,7 @@ export class Room {
   public id: RoomId;
   private scene: GameScene;
   private floor: Phaser.GameObjects.Graphics;
+  private tiledFloor: Phaser.GameObjects.TileSprite | null = null;
   private walls: Phaser.GameObjects.Graphics;
   private doors: DoorData[] = [];
   // Clock is now part of decorations as a graphics object
@@ -71,6 +72,14 @@ export class Room {
     const floorColor = FLOOR_COLORS[this.id];
     const roomWidth = ROOM_WIDTH * TILE_SIZE;
     const roomHeight = ROOM_HEIGHT * TILE_SIZE;
+
+    // Use tiled floor for cellar
+    if (this.id === 'cellar' && this.scene.textures.exists('cellar_flooring')) {
+      this.tiledFloor = this.scene.add.tileSprite(0, 0, roomWidth, roomHeight, 'cellar_flooring');
+      this.tiledFloor.setOrigin(0, 0);
+      this.tiledFloor.setDepth(0);
+      return;
+    }
 
     this.floor.fillStyle(floorColor);
     this.floor.fillRect(0, 0, roomWidth, roomHeight);
@@ -247,10 +256,6 @@ export class Room {
   }
 
   private setupCellar(): void {
-    // Darker atmosphere - tint the floor
-    this.floor.fillStyle(0x333333, 0.3);
-    this.floor.fillRect(0, 0, ROOM_WIDTH * TILE_SIZE, ROOM_HEIGHT * TILE_SIZE);
-
     // Secret stairway back to ballroom
     this.doors = [
       {
@@ -354,16 +359,18 @@ export class Room {
           this.decorations.push(sprite);
 
           // Track position
+          const finalWidth = itemWidth * (sprite.scaleX || 1);
+          const finalHeight = itemHeight * (sprite.scaleY || 1);
           placedPositions.push({
             x,
             y,
-            width: itemWidth * (sprite.scaleX || 1),
-            height: itemHeight * (sprite.scaleY || 1)
+            width: finalWidth,
+            height: finalHeight
           });
 
-          // Add collision for furniture items
-          if (itemKey.startsWith('furniture_')) {
-            this.createCollisionRect(x, y, itemWidth * (sprite.scaleX || 1), itemHeight * (sprite.scaleY || 1));
+          // Only add collision if sprite has a valid texture (not missing/blank)
+          if (sprite.texture && sprite.texture.key !== '__MISSING' && sprite.visible) {
+            this.createCollisionRect(x, y, finalWidth, finalHeight);
           }
 
           placed = true;
@@ -406,21 +413,44 @@ export class Room {
 
   hide(): void {
     this.floor.setVisible(false);
+    if (this.tiledFloor) {
+      this.tiledFloor.setVisible(false);
+    }
     this.walls.setVisible(false);
     this.decorations.forEach(d => {
       if ('setVisible' in d) {
         (d as Phaser.GameObjects.Graphics).setVisible(false);
       }
     });
+
+    // Disable collision bodies when room is hidden
+    this.collisionBodies.setVisible(false);
+    this.collisionBodies.children.iterate((child) => {
+      if (child && 'body' in child) {
+        (child.body as Phaser.Physics.Arcade.StaticBody).enable = false;
+      }
+      return true;
+    });
   }
 
   show(): void {
     this.floor.setVisible(true);
+    if (this.tiledFloor) {
+      this.tiledFloor.setVisible(true);
+    }
     this.walls.setVisible(true);
     this.decorations.forEach(d => {
       if ('setVisible' in d) {
         (d as Phaser.GameObjects.Graphics).setVisible(true);
       }
+    });
+
+    // Enable collision bodies when room is shown
+    this.collisionBodies.children.iterate((child) => {
+      if (child && 'body' in child) {
+        (child.body as Phaser.Physics.Arcade.StaticBody).enable = true;
+      }
+      return true;
     });
 
     // Re-setup collision with player

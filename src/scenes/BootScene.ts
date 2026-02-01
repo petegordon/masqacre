@@ -40,6 +40,10 @@ export class BootScene extends Phaser.Scene {
     this.load.image('furniture_bookcase', 'assets/sprites/furniture_bookcase.png');
     this.load.image('furniture_chair_forward', 'assets/sprites/furniture_chair_forward.png');
     this.load.image('furniture_chair_right', 'assets/sprites/furniture_chair_right.png');
+    this.load.image('furniture_statue', 'assets/sprites/statue.png');
+
+    // Load floor tiles
+    this.load.image('cellar_flooring', 'assets/tilemaps/cellar_flooring.png');
 
     // Load character portraits for dialogue
     this.load.image('portrait_lord_vermillion', 'assets/characters/red_lord_vermillion.png');
