@@ -369,13 +369,20 @@ export class UIScene extends Phaser.Scene {
   private createInventoryPanel(): void {
     this.inventoryPanel = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2);
 
-    // Background
+    // Background - make it interactive for tap-to-close
     const bg = this.add.graphics();
     bg.fillStyle(0x1a1a2e, 0.95);
     bg.fillRect(-200, -150, 400, 300);
     bg.lineStyle(2, 0xffd700);
     bg.strokeRect(-200, -150, 400, 300);
     this.inventoryPanel.add(bg);
+
+    // Invisible hit area for tap-to-close
+    const hitArea = this.add.rectangle(0, 0, 400, 300);
+    hitArea.setInteractive({ useHandCursor: true });
+    hitArea.setAlpha(0.001);
+    hitArea.on('pointerdown', () => this.toggleInventory());
+    this.inventoryPanel.add(hitArea);
 
     // Title
     const title = this.add.text(0, -130, 'CLUE JOURNAL', {
@@ -386,8 +393,9 @@ export class UIScene extends Phaser.Scene {
     title.setOrigin(0.5);
     this.inventoryPanel.add(title);
 
-    // Close hint
-    const closeHint = this.add.text(0, 130, 'Press TAB to close', {
+    // Close hint - show tap hint on mobile
+    const mobile = isTouchDevice();
+    const closeHint = this.add.text(0, 130, mobile ? 'Tap to close' : 'Press TAB to close', {
       fontFamily: 'monospace',
       fontSize: '12px',
       color: '#888888'
