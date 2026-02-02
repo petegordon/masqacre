@@ -41,11 +41,25 @@ export const GameConfig: Phaser.Types.Core.GameConfig = {
   scene: [BootScene, MenuScene, GameScene, UIScene, DialogueScene, GameOverScene],
   scale: {
     mode: Phaser.Scale.FIT,
-    autoCenter: Phaser.Scale.CENTER_BOTH
+    autoCenter: Phaser.Scale.CENTER_BOTH,
+    // Expand to fill available space while maintaining aspect ratio
+    expandParent: true,
+    // Fullscreen settings for mobile
+    fullscreenTarget: 'game-container'
   },
   render: {
     antialias: false,
     pixelArt: true,
     roundPixels: true
+  },
+  input: {
+    // Enable touch input
+    touch: true,
+    // Prevent right-click context menu
+    mouse: {
+      preventDefaultDown: true,
+      preventDefaultUp: true,
+      preventDefaultMove: true
+    }
   }
 };

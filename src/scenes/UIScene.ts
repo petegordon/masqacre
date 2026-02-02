@@ -2,6 +2,14 @@ import Phaser from 'phaser';
 import { GameScene } from './GameScene';
 import { GAME_WIDTH, GAME_HEIGHT, SUSPICION_MAX } from '../config/GameConfig';
 import { ClueType } from '../types';
+import { TouchControls } from '../systems/TouchControls';
+
+// Helper to detect touch device
+const isTouchDevice = (): boolean => {
+  return 'ontouchstart' in window ||
+         navigator.maxTouchPoints > 0 ||
+         window.matchMedia('(pointer: coarse)').matches;
+};
 
 export class UIScene extends Phaser.Scene {
   private gameScene!: GameScene;
@@ -13,6 +21,9 @@ export class UIScene extends Phaser.Scene {
 
   private inventoryPanel!: Phaser.GameObjects.Container;
   private isInventoryOpen = false;
+
+  // Touch controls
+  private touchControls!: TouchControls;
 
   // Grandfather clock elements
   private clockContainer!: Phaser.GameObjects.Container;
@@ -49,6 +60,9 @@ export class UIScene extends Phaser.Scene {
     // Inventory panel (hidden by default)
     this.createInventoryPanel();
 
+    // Touch controls (created in UIScene so they're not affected by GameScene camera)
+    this.createTouchControls();
+
     // Listen for events
     this.setupEventListeners();
   }
@@ -59,6 +73,11 @@ export class UIScene extends Phaser.Scene {
     this.updateRoomIndicator();
     this.updateClueCounter();
     this.updateInteractPrompt();
+
+    // Pass touch input to GameScene
+    if (this.touchControls?.isActive) {
+      this.gameScene.setTouchInput(this.touchControls.getInputState());
+    }
   }
 
   private createSuspicionMeter(): void {
@@ -90,7 +109,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   private createGrandfatherClock(): void {
-    const clockX = GAME_WIDTH - 70;
+    // Clock positioned more to the left to make room for action buttons on both sides
+    const clockX = GAME_WIDTH - 170;
     const clockY = GAME_HEIGHT - 140;
 
     this.clockContainer = this.add.container(clockX, clockY);
@@ -349,13 +369,20 @@ export class UIScene extends Phaser.Scene {
   private createInventoryPanel(): void {
     this.inventoryPanel = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2);
 
-    // Background
+    // Background - make it interactive for tap-to-close
     const bg = this.add.graphics();
     bg.fillStyle(0x1a1a2e, 0.95);
     bg.fillRect(-200, -150, 400, 300);
     bg.lineStyle(2, 0xffd700);
     bg.strokeRect(-200, -150, 400, 300);
     this.inventoryPanel.add(bg);
+
+    // Invisible hit area for tap-to-close
+    const hitArea = this.add.rectangle(0, 0, 400, 300);
+    hitArea.setInteractive({ useHandCursor: true });
+    hitArea.setAlpha(0.001);
+    hitArea.on('pointerdown', () => this.toggleInventory());
+    this.inventoryPanel.add(hitArea);
 
     // Title
     const title = this.add.text(0, -130, 'CLUE JOURNAL', {
@@ -366,8 +393,9 @@ export class UIScene extends Phaser.Scene {
     title.setOrigin(0.5);
     this.inventoryPanel.add(title);
 
-    // Close hint
-    const closeHint = this.add.text(0, 130, 'Press TAB to close', {
+    // Close hint - show tap hint on mobile
+    const mobile = isTouchDevice();
+    const closeHint = this.add.text(0, 130, mobile ? 'Tap to close' : 'Press TAB to close', {
       fontFamily: 'monospace',
       fontSize: '12px',
       color: '#888888'
@@ -379,10 +407,37 @@ export class UIScene extends Phaser.Scene {
     this.inventoryPanel.setDepth(100);
   }
 
+  private createTouchControls(): void {
+    this.touchControls = new TouchControls(this);
+
+    // Connect touch button callbacks to game actions
+    this.touchControls.onInteract = () => {
+      this.gameScene.handleTouchInteract();
+    };
+
+    this.touchControls.onAttack = () => {
+      this.gameScene.handleTouchAttack();
+    };
+
+    this.touchControls.onInventory = () => {
+      this.toggleInventory();
+    };
+  }
+
   private setupEventListeners(): void {
     this.gameScene.events.on('toggleInventory', this.toggleInventory, this);
     this.gameScene.events.on('clueDiscovered', this.onClueDiscovered, this);
     this.gameScene.events.on('targetIdentified', this.onTargetIdentified, this);
+    this.gameScene.events.on('hideTouchControls', this.hideTouchControls, this);
+    this.gameScene.events.on('showTouchControls', this.showTouchControls, this);
+  }
+
+  private hideTouchControls(): void {
+    this.touchControls?.hide();
+  }
+
+  private showTouchControls(): void {
+    this.touchControls?.show();
   }
 
   shutdown(): void {
@@ -390,6 +445,11 @@ export class UIScene extends Phaser.Scene {
     this.gameScene.events.off('toggleInventory', this.toggleInventory, this);
     this.gameScene.events.off('clueDiscovered', this.onClueDiscovered, this);
     this.gameScene.events.off('targetIdentified', this.onTargetIdentified, this);
+    this.gameScene.events.off('hideTouchControls', this.hideTouchControls, this);
+    this.gameScene.events.off('showTouchControls', this.showTouchControls, this);
+
+    // Clean up touch controls
+    this.touchControls?.destroy();
 
     // Stop all tweens
     this.tweens.killAll();
@@ -471,9 +531,11 @@ export class UIScene extends Phaser.Scene {
   private updateInteractPrompt(): void {
     // Check for nearby interactive objects
     const nearbyNPC = this.gameScene['getNearbyNPC']?.();
+    const isTouch = isTouchDevice();
 
     if (nearbyNPC && nearbyNPC.isAlive) {
-      this.interactPrompt.setText('[E] Talk  [Q] Attack');
+      // On touch devices, buttons are visible, so just indicate what's possible
+      this.interactPrompt.setText(isTouch ? 'Tap E to Talk, Q to Attack' : '[E] Talk  [Q] Attack');
       this.interactPrompt.setAlpha(1);
     } else {
       // Check for doors
@@ -493,7 +555,7 @@ export class UIScene extends Phaser.Scene {
       }
 
       if (nearDoor) {
-        this.interactPrompt.setText('[E] Enter');
+        this.interactPrompt.setText(isTouch ? 'Tap E to Enter' : '[E] Enter');
         this.interactPrompt.setAlpha(1);
       } else {
         this.interactPrompt.setAlpha(0);
@@ -575,6 +637,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   private onClueDiscovered(clue: ClueType): void {
+    const mobile = isTouchDevice();
+
     // Create modal overlay
     const overlay = this.add.graphics();
     overlay.fillStyle(0x000000, 0.7);
@@ -585,18 +649,20 @@ export class UIScene extends Phaser.Scene {
     const modal = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2);
     modal.setDepth(201);
 
-    // Modal background
+    // Modal background - larger on mobile
+    const modalWidth = mobile ? 420 : 360;
+    const modalHeight = mobile ? 200 : 160;
     const bg = this.add.graphics();
     bg.fillStyle(0x1a1a2e, 0.98);
-    bg.fillRect(-180, -80, 360, 160);
+    bg.fillRect(-modalWidth/2, -modalHeight/2, modalWidth, modalHeight);
     bg.lineStyle(3, 0xffd700);
-    bg.strokeRect(-180, -80, 360, 160);
+    bg.strokeRect(-modalWidth/2, -modalHeight/2, modalWidth, modalHeight);
     modal.add(bg);
 
     // Header
-    const header = this.add.text(0, -55, 'CLUE DISCOVERED', {
+    const header = this.add.text(0, -modalHeight/2 + 25, 'CLUE DISCOVERED', {
       fontFamily: 'Georgia, serif',
-      fontSize: '20px',
+      fontSize: mobile ? '26px' : '20px',
       color: '#ffd700'
     });
     header.setOrigin(0.5);
@@ -604,9 +670,9 @@ export class UIScene extends Phaser.Scene {
 
     // Category label
     const categoryNames = { mask: 'MASK CLUE', location: 'LOCATION CLUE', behavior: 'BEHAVIOR CLUE' };
-    const category = this.add.text(0, -25, categoryNames[clue.category as keyof typeof categoryNames], {
+    const category = this.add.text(0, -modalHeight/2 + 55, categoryNames[clue.category as keyof typeof categoryNames], {
       fontFamily: 'monospace',
-      fontSize: '12px',
+      fontSize: mobile ? '14px' : '12px',
       color: '#888888'
     });
     category.setOrigin(0.5);
@@ -615,21 +681,34 @@ export class UIScene extends Phaser.Scene {
     // Clue description
     const description = this.add.text(0, 10, clue.description, {
       fontFamily: 'monospace',
-      fontSize: '16px',
+      fontSize: mobile ? '18px' : '16px',
       color: '#ffffff',
       align: 'center',
-      wordWrap: { width: 320 }
+      wordWrap: { width: modalWidth - 40 }
     });
     description.setOrigin(0.5);
     modal.add(description);
 
-    // Continue prompt
-    const prompt = this.add.text(0, 55, '[Press SPACE to continue]', {
+    // Continue prompt - make it a button on mobile
+    const promptText = mobile ? '[ TAP TO CONTINUE ]' : '[Press SPACE to continue]';
+
+    if (mobile) {
+      const btnBg = this.add.graphics();
+      btnBg.fillStyle(0x8b0000, 0.8);
+      btnBg.fillRoundedRect(-100, modalHeight/2 - 50, 200, 40, 8);
+      btnBg.lineStyle(2, 0xffd700);
+      btnBg.strokeRoundedRect(-100, modalHeight/2 - 50, 200, 40, 8);
+      modal.add(btnBg);
+    }
+
+    const prompt = this.add.text(0, mobile ? modalHeight/2 - 30 : modalHeight/2 - 25, promptText, {
       fontFamily: 'monospace',
-      fontSize: '12px',
-      color: '#888888'
+      fontSize: mobile ? '16px' : '12px',
+      color: mobile ? '#ffd700' : '#888888',
+      fontStyle: mobile ? 'bold' : 'normal'
     });
     prompt.setOrigin(0.5);
+    prompt.setInteractive({ useHandCursor: true });
     modal.add(prompt);
 
     // Pulse the prompt
@@ -641,18 +720,26 @@ export class UIScene extends Phaser.Scene {
       repeat: -1
     });
 
-    // Wait for key press to dismiss
+    // Wait for key press or tap to dismiss
     const dismissModal = () => {
       overlay.destroy();
       modal.destroy();
       this.input.keyboard?.off('keydown-SPACE', dismissModal);
       this.input.keyboard?.off('keydown-ENTER', dismissModal);
       this.input.keyboard?.off('keydown-E', dismissModal);
+      prompt.off('pointerdown', dismissModal);
+      overlay.off('pointerdown', dismissModal);
     };
 
+    // Keyboard
     this.input.keyboard?.once('keydown-SPACE', dismissModal);
     this.input.keyboard?.once('keydown-ENTER', dismissModal);
     this.input.keyboard?.once('keydown-E', dismissModal);
+
+    // Touch - tap anywhere on overlay or prompt
+    prompt.on('pointerdown', dismissModal);
+    overlay.setInteractive(new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT), Phaser.Geom.Rectangle.Contains);
+    overlay.on('pointerdown', dismissModal);
   }
 
   private onTargetIdentified(): void {

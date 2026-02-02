@@ -1,6 +1,14 @@
 import Phaser from 'phaser';
 import { GameScene } from '../scenes/GameScene';
 import { PLAYER_SPEED, PLAYER_SNEAK_SPEED } from '../config/GameConfig';
+import { TouchInputState } from '../systems/TouchControls';
+
+export interface PlayerInputOptions {
+  cursors: Phaser.Types.Input.Keyboard.CursorKeys;
+  wasd: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key };
+  sneakKey: Phaser.Input.Keyboard.Key;
+  touchInput?: TouchInputState;
+}
 
 export class Player {
   public sprite: Phaser.Physics.Arcade.Sprite;
@@ -32,18 +40,16 @@ export class Player {
     this.sprite.play(`${this.textureKey}_idle_down`);
   }
 
-  update(
-    cursors: Phaser.Types.Input.Keyboard.CursorKeys,
-    wasd: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key },
-    sneakKey: Phaser.Input.Keyboard.Key
-  ): void {
+  update(input: PlayerInputOptions): void {
     if (this.frozen) {
       this.sprite.setVelocity(0, 0);
       return;
     }
 
-    // Check sneak
-    this.isSneaking = sneakKey.isDown;
+    const { cursors, wasd, sneakKey, touchInput } = input;
+
+    // Check sneak (keyboard or touch)
+    this.isSneaking = sneakKey.isDown || (touchInput?.isSneaking ?? false);
     const speed = this.isSneaking ? PLAYER_SNEAK_SPEED : PLAYER_SPEED;
 
     // Calculate velocity
@@ -51,26 +57,43 @@ export class Player {
     let velocityY = 0;
     let newDirection = this.facingDirection;
 
-    if (cursors.left.isDown || wasd.A.isDown) {
-      velocityX = -speed;
-      newDirection = 'left';
-    } else if (cursors.right.isDown || wasd.D.isDown) {
-      velocityX = speed;
-      newDirection = 'right';
+    // Check touch input first, then keyboard
+    if (touchInput && (touchInput.velocityX !== 0 || touchInput.velocityY !== 0)) {
+      // Use touch joystick input
+      velocityX = touchInput.velocityX * speed;
+      velocityY = touchInput.velocityY * speed;
+
+      // Determine facing direction based on largest velocity component
+      if (Math.abs(touchInput.velocityX) > Math.abs(touchInput.velocityY)) {
+        newDirection = touchInput.velocityX < 0 ? 'left' : 'right';
+      } else if (touchInput.velocityY !== 0) {
+        newDirection = touchInput.velocityY < 0 ? 'up' : 'down';
+      }
+    } else {
+      // Use keyboard input
+      if (cursors.left.isDown || wasd.A.isDown) {
+        velocityX = -speed;
+        newDirection = 'left';
+      } else if (cursors.right.isDown || wasd.D.isDown) {
+        velocityX = speed;
+        newDirection = 'right';
+      }
+
+      if (cursors.up.isDown || wasd.W.isDown) {
+        velocityY = -speed;
+        newDirection = 'up';
+      } else if (cursors.down.isDown || wasd.S.isDown) {
+        velocityY = speed;
+        newDirection = 'down';
+      }
     }
 
-    if (cursors.up.isDown || wasd.W.isDown) {
-      velocityY = -speed;
-      newDirection = 'up';
-    } else if (cursors.down.isDown || wasd.S.isDown) {
-      velocityY = speed;
-      newDirection = 'down';
-    }
-
-    // Normalize diagonal movement
-    if (velocityX !== 0 && velocityY !== 0) {
-      velocityX *= 0.707;
-      velocityY *= 0.707;
+    // Normalize diagonal movement (only for keyboard input, touch is already normalized)
+    if (!touchInput || (touchInput.velocityX === 0 && touchInput.velocityY === 0)) {
+      if (velocityX !== 0 && velocityY !== 0) {
+        velocityX *= 0.707;
+        velocityY *= 0.707;
+      }
     }
 
     this.sprite.setVelocity(velocityX, velocityY);

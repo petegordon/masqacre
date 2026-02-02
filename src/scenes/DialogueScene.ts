@@ -5,6 +5,11 @@ import { DialogueNode, DialogueChoice } from '../types';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/GameConfig';
 import { getDialogueForNPC } from '../data/DialogueData';
 
+// Helper to detect mobile for larger fonts
+const isMobile = (): boolean => {
+  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+};
+
 export class DialogueScene extends Phaser.Scene {
   private gameScene!: GameScene;
   private npc!: NPC;
@@ -72,6 +77,11 @@ export class DialogueScene extends Phaser.Scene {
   private createDialogueBox(): void {
     this.dialogueBox = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT - 120);
 
+    // Mobile-friendly font sizes
+    const mobile = isMobile();
+    const speakerFontSize = mobile ? '20px' : '16px';
+    const dialogueFontSize = mobile ? '16px' : '13px';
+
     // Box background - taller to fit all content
     const bg = this.add.graphics();
     bg.fillStyle(0x1a1a2e, 0.95);
@@ -107,18 +117,18 @@ export class DialogueScene extends Phaser.Scene {
     // Speaker name
     this.speakerText = this.add.text(this.textStartX, -100, '', {
       fontFamily: 'Georgia, serif',
-      fontSize: '16px',
+      fontSize: speakerFontSize,
       color: '#ffd700'
     });
     this.dialogueBox.add(this.speakerText);
 
     // Dialogue text
-    this.dialogueText = this.add.text(this.textStartX, -75, '', {
+    this.dialogueText = this.add.text(this.textStartX, -70, '', {
       fontFamily: 'monospace',
-      fontSize: '13px',
+      fontSize: dialogueFontSize,
       color: '#ffffff',
       wordWrap: { width: 620 },
-      lineSpacing: 2
+      lineSpacing: mobile ? 6 : 2
     });
     this.dialogueBox.add(this.dialogueText);
   }
@@ -147,13 +157,26 @@ export class DialogueScene extends Phaser.Scene {
   }
 
   private displayChoices(choices: DialogueChoice[]): void {
-    const startY = -5;
+    const mobile = isMobile();
+    const fontSize = mobile ? '16px' : '12px';
+    const lineHeight = mobile ? 26 : 22;
+    const startY = mobile ? -27 : -5;
 
     choices.forEach((choice, index) => {
-      const text = this.add.text(this.textStartX, startY + index * 22, `${index + 1}. ${choice.text}`, {
+      // Create a background for better tap target on mobile
+      if (mobile) {
+        const bg = this.add.graphics();
+        bg.fillStyle(0x333344, 0.5);
+        bg.fillRoundedRect(this.textStartX - 5, startY + index * lineHeight - 4, 640, lineHeight - 4, 4);
+        this.dialogueBox.add(bg);
+        this.choiceTexts.push(bg as unknown as Phaser.GameObjects.Text);
+      }
+
+      const text = this.add.text(this.textStartX, startY + index * lineHeight, `${index + 1}. ${choice.text}`, {
         fontFamily: 'monospace',
-        fontSize: '12px',
-        color: index === this.selectedChoice ? '#ffd700' : '#aaaaaa'
+        fontSize: fontSize,
+        color: index === this.selectedChoice ? '#ffd700' : '#aaaaaa',
+        padding: mobile ? { x: 5, y: 5 } : undefined
       });
       text.setInteractive({ useHandCursor: true });
 
@@ -172,12 +195,30 @@ export class DialogueScene extends Phaser.Scene {
   }
 
   private displayContinuePrompt(nextNodeId: string): void {
-    const text = this.add.text(0, 70, '[SPACE or ENTER to continue]', {
+    const mobile = isMobile();
+    const promptText = mobile ? '[ TAP TO CONTINUE ]' : '[SPACE or ENTER to continue]';
+    const fontSize = mobile ? '18px' : '12px';
+
+    // Add a visible button background on mobile
+    if (mobile) {
+      const bg = this.add.graphics();
+      bg.fillStyle(0x8b0000, 0.8);
+      bg.fillRoundedRect(-120, 55, 240, 40, 8);
+      bg.lineStyle(2, 0xffd700);
+      bg.strokeRoundedRect(-120, 55, 240, 40, 8);
+      this.dialogueBox.add(bg);
+      this.choiceTexts.push(bg as unknown as Phaser.GameObjects.Text);
+    }
+
+    const text = this.add.text(0, mobile ? 75 : 70, promptText, {
       fontFamily: 'monospace',
-      fontSize: '12px',
-      color: '#888888'
+      fontSize: fontSize,
+      color: mobile ? '#ffd700' : '#888888',
+      fontStyle: mobile ? 'bold' : 'normal'
     });
     text.setOrigin(0.5);
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerdown', () => this.confirmSelection());
     this.dialogueBox.add(text);
     this.choiceTexts.push(text);
 
@@ -186,12 +227,30 @@ export class DialogueScene extends Phaser.Scene {
   }
 
   private displayExitPrompt(): void {
-    const text = this.add.text(0, 70, '[SPACE or ENTER to leave]', {
+    const mobile = isMobile();
+    const promptText = mobile ? '[ TAP TO LEAVE ]' : '[SPACE or ENTER to leave]';
+    const fontSize = mobile ? '18px' : '12px';
+
+    // Add a visible button background on mobile
+    if (mobile) {
+      const bg = this.add.graphics();
+      bg.fillStyle(0x8b0000, 0.8);
+      bg.fillRoundedRect(-100, 55, 200, 40, 8);
+      bg.lineStyle(2, 0xffd700);
+      bg.strokeRoundedRect(-100, 55, 200, 40, 8);
+      this.dialogueBox.add(bg);
+      this.choiceTexts.push(bg as unknown as Phaser.GameObjects.Text);
+    }
+
+    const text = this.add.text(0, mobile ? 75 : 70, promptText, {
       fontFamily: 'monospace',
-      fontSize: '12px',
-      color: '#888888'
+      fontSize: fontSize,
+      color: mobile ? '#ffd700' : '#888888',
+      fontStyle: mobile ? 'bold' : 'normal'
     });
     text.setOrigin(0.5);
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerdown', () => this.confirmSelection());
     this.dialogueBox.add(text);
     this.choiceTexts.push(text);
 

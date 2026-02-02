@@ -8,6 +8,7 @@ import { MaskSystem } from '../systems/MaskSystem';
 import { TimerSystem } from '../systems/TimerSystem';
 import { ClueSystem } from '../systems/ClueSystem';
 import { CombatSystem } from '../systems/CombatSystem';
+import { TouchInputState } from '../systems/TouchControls';
 import { RoomId, GameState, Position } from '../types';
 import {
   TILE_SIZE, ROOM_WIDTH, ROOM_HEIGHT, GAME_TIME_SECONDS
@@ -29,6 +30,9 @@ export class GameScene extends Phaser.Scene {
   public combatSystem!: CombatSystem;
 
   public gameState!: GameState;
+
+  // Touch input received from UIScene
+  private touchInput: TouchInputState | undefined;
 
   private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
   private wasd!: { W: Phaser.Input.Keyboard.Key; A: Phaser.Input.Keyboard.Key; S: Phaser.Input.Keyboard.Key; D: Phaser.Input.Keyboard.Key };
@@ -110,15 +114,20 @@ export class GameScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if (this.gameState.isGameOver) return;
 
-    // Update player
-    this.player.update(this.cursors, this.wasd, this.sneakKey);
+    // Update player with keyboard and touch input
+    this.player.update({
+      cursors: this.cursors,
+      wasd: this.wasd,
+      sneakKey: this.sneakKey,
+      touchInput: this.touchInput
+    });
 
     // Update systems
     this.aiSystem.update(delta);
     this.suspicionSystem.update(delta);
     this.timerSystem.update(delta);
 
-    // Handle interactions
+    // Handle interactions (keyboard only, touch is handled by callbacks)
     this.handleInteractions();
   }
 
@@ -177,6 +186,28 @@ export class GameScene extends Phaser.Scene {
 
     // Prevent tab from switching focus
     this.input.keyboard!.addCapture(Phaser.Input.Keyboard.KeyCodes.TAB);
+  }
+
+  // Called by UIScene to update touch input state
+  public setTouchInput(input: TouchInputState | undefined): void {
+    this.touchInput = input;
+  }
+
+  // Called by UIScene touch buttons
+  public handleTouchInteract(): void {
+    const nearbyNPC = this.getNearbyNPC();
+    if (nearbyNPC && nearbyNPC.isAlive) {
+      this.startDialogue(nearbyNPC);
+    } else {
+      this.checkDoorInteraction();
+    }
+  }
+
+  public handleTouchAttack(): void {
+    const nearbyNPC = this.getNearbyNPC();
+    if (nearbyNPC && nearbyNPC.isAlive) {
+      this.combatSystem.attemptKill(nearbyNPC);
+    }
   }
 
   private handleInteractions(): void {
@@ -277,6 +308,7 @@ export class GameScene extends Phaser.Scene {
 
   public startDialogue(npc: NPC): void {
     this.player.freeze();
+    this.events.emit('hideTouchControls');
     this.scene.launch('DialogueScene', {
       gameScene: this,
       npc: npc
@@ -287,6 +319,7 @@ export class GameScene extends Phaser.Scene {
   public endDialogue(): void {
     this.scene.resume();
     this.player.unfreeze();
+    this.events.emit('showTouchControls');
   }
 
   public gameOver(won: boolean, reason: string): void {
