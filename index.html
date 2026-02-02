@@ -82,13 +82,10 @@
       75% { transform: rotate(15deg); }
     }
 
-    /* Show rotate overlay on mobile portrait */
+    /* Show rotate overlay on mobile portrait - overlay on top, don't hide game */
     @media screen and (max-width: 900px) and (orientation: portrait) {
       #rotate-overlay {
         display: flex;
-      }
-      #game-container {
-        display: none;
       }
     }
   </style>
