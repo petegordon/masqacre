@@ -2,7 +2,10 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
   <title>Masqacre - A Masquerade Mystery</title>
   <style>
     * {
@@ -10,20 +13,45 @@
       padding: 0;
       box-sizing: border-box;
     }
-    body {
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
       background-color: #1a1a2e;
+      /* Prevent pull-to-refresh and overscroll */
+      overscroll-behavior: none;
+      -webkit-overflow-scrolling: touch;
+      /* iOS safe area support */
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    body {
       display: flex;
       justify-content: center;
       align-items: center;
+      /* Use dvh for mobile browsers (dynamic viewport height) */
       min-height: 100vh;
-      overflow: hidden;
+      min-height: 100dvh;
+      /* Prevent text selection */
+      -webkit-user-select: none;
+      user-select: none;
+      /* Prevent touch callout */
+      -webkit-touch-callout: none;
     }
     #game-container {
       image-rendering: pixelated;
       image-rendering: crisp-edges;
+      /* Prevent canvas from being larger than viewport */
+      max-width: 100%;
+      max-height: 100%;
+      /* Touch action for game */
+      touch-action: none;
+    }
+    #game-container canvas {
+      display: block;
+      touch-action: none;
     }
   </style>
-  <script type="module" crossorigin src="/pr-preview/pr-4/assets/index-ci9MZfx_.js"></script>
+  <script type="module" crossorigin src="/pr-preview/pr-4/assets/index-qViqGD8q.js"></script>
 </head>
 <body>
   <div id="game-container"></div>
