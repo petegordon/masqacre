@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GameScene } from './GameScene';
 import { GAME_WIDTH, GAME_HEIGHT, SUSPICION_MAX } from '../config/GameConfig';
 import { ClueType } from '../types';
+import { TouchControls } from '../systems/TouchControls';
 
 // Helper to detect touch device
 const isTouchDevice = (): boolean => {
@@ -20,6 +21,9 @@ export class UIScene extends Phaser.Scene {
 
   private inventoryPanel!: Phaser.GameObjects.Container;
   private isInventoryOpen = false;
+
+  // Touch controls
+  private touchControls!: TouchControls;
 
   // Grandfather clock elements
   private clockContainer!: Phaser.GameObjects.Container;
@@ -56,6 +60,9 @@ export class UIScene extends Phaser.Scene {
     // Inventory panel (hidden by default)
     this.createInventoryPanel();
 
+    // Touch controls (created in UIScene so they're not affected by GameScene camera)
+    this.createTouchControls();
+
     // Listen for events
     this.setupEventListeners();
   }
@@ -66,6 +73,11 @@ export class UIScene extends Phaser.Scene {
     this.updateRoomIndicator();
     this.updateClueCounter();
     this.updateInteractPrompt();
+
+    // Pass touch input to GameScene
+    if (this.touchControls?.isActive) {
+      this.gameScene.setTouchInput(this.touchControls.getInputState());
+    }
   }
 
   private createSuspicionMeter(): void {
@@ -386,10 +398,37 @@ export class UIScene extends Phaser.Scene {
     this.inventoryPanel.setDepth(100);
   }
 
+  private createTouchControls(): void {
+    this.touchControls = new TouchControls(this);
+
+    // Connect touch button callbacks to game actions
+    this.touchControls.onInteract = () => {
+      this.gameScene.handleTouchInteract();
+    };
+
+    this.touchControls.onAttack = () => {
+      this.gameScene.handleTouchAttack();
+    };
+
+    this.touchControls.onInventory = () => {
+      this.toggleInventory();
+    };
+  }
+
   private setupEventListeners(): void {
     this.gameScene.events.on('toggleInventory', this.toggleInventory, this);
     this.gameScene.events.on('clueDiscovered', this.onClueDiscovered, this);
     this.gameScene.events.on('targetIdentified', this.onTargetIdentified, this);
+    this.gameScene.events.on('hideTouchControls', this.hideTouchControls, this);
+    this.gameScene.events.on('showTouchControls', this.showTouchControls, this);
+  }
+
+  private hideTouchControls(): void {
+    this.touchControls?.hide();
+  }
+
+  private showTouchControls(): void {
+    this.touchControls?.show();
   }
 
   shutdown(): void {
@@ -397,6 +436,11 @@ export class UIScene extends Phaser.Scene {
     this.gameScene.events.off('toggleInventory', this.toggleInventory, this);
     this.gameScene.events.off('clueDiscovered', this.onClueDiscovered, this);
     this.gameScene.events.off('targetIdentified', this.onTargetIdentified, this);
+    this.gameScene.events.off('hideTouchControls', this.hideTouchControls, this);
+    this.gameScene.events.off('showTouchControls', this.showTouchControls, this);
+
+    // Clean up touch controls
+    this.touchControls?.destroy();
 
     // Stop all tweens
     this.tweens.killAll();

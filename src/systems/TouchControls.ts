@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { GAME_WIDTH, GAME_HEIGHT } from '../config/GameConfig';
 
 export interface TouchInputState {
   velocityX: number;
@@ -28,6 +29,7 @@ export class TouchControls {
   private attackButton!: Phaser.GameObjects.Container;
   private inventoryButton!: Phaser.GameObjects.Container;
   private sneakButton!: Phaser.GameObjects.Container;
+  private fullscreenButton!: Phaser.GameObjects.Container;
 
   public onInteract: (() => void) | null = null;
   public onAttack: (() => void) | null = null;
@@ -53,11 +55,12 @@ export class TouchControls {
   }
 
   private createJoystick(): void {
-    const screenHeight = this.scene.cameras.main.height;
+    // Use game dimensions (UIScene uses the same coordinate system)
+    const gameHeight = GAME_HEIGHT;
 
-    // Position joystick in bottom-left corner
-    this.baseX = 100;
-    this.baseY = screenHeight - 120;
+    // Position joystick in bottom-left corner with padding
+    this.baseX = 90;
+    this.baseY = gameHeight - 90;
     this.thumbX = this.baseX;
     this.thumbY = this.baseY;
 
@@ -68,13 +71,11 @@ export class TouchControls {
     this.joystickBase.lineStyle(3, 0xffffff, 0.5);
     this.joystickBase.strokeCircle(this.baseX, this.baseY, this.joystickRadius);
     this.joystickBase.setDepth(1000);
-    this.joystickBase.setScrollFactor(0);
 
     // Create joystick thumb
     this.joystickThumb = this.scene.add.graphics();
     this.drawThumb();
     this.joystickThumb.setDepth(1001);
-    this.joystickThumb.setScrollFactor(0);
   }
 
   private drawThumb(): void {
@@ -86,19 +87,19 @@ export class TouchControls {
   }
 
   private createActionButtons(): void {
-    const screenWidth = this.scene.cameras.main.width;
-    const screenHeight = this.scene.cameras.main.height;
+    const gameWidth = GAME_WIDTH;
+    const gameHeight = GAME_HEIGHT;
 
-    const buttonSize = 55;
-    const buttonPadding = 15;
-    const rightMargin = 30;
-    const bottomMargin = 100;
+    const buttonSize = 50;
+    const buttonPadding = 10;
+    const rightMargin = 20;
+    const bottomMargin = 70;
 
     // Position buttons in bottom-right corner
-    const buttonBaseX = screenWidth - rightMargin - buttonSize;
-    const buttonBaseY = screenHeight - bottomMargin;
+    const buttonBaseX = gameWidth - rightMargin - buttonSize;
+    const buttonBaseY = gameHeight - bottomMargin;
 
-    // Interact button (E) - primary action, large and prominent
+    // Interact button (E) - primary action
     this.interactButton = this.createButton(
       buttonBaseX - buttonSize - buttonPadding,
       buttonBaseY - buttonSize - buttonPadding,
@@ -118,7 +119,7 @@ export class TouchControls {
       () => this.onAttack?.()
     );
 
-    // Inventory button (Tab) - smaller, top right
+    // Inventory button (Tab) - smaller
     this.inventoryButton = this.createButton(
       buttonBaseX,
       buttonBaseY - (buttonSize + buttonPadding) * 2,
@@ -132,11 +133,21 @@ export class TouchControls {
     this.sneakButton = this.createButton(
       buttonBaseX - buttonSize - buttonPadding,
       buttonBaseY,
-      buttonSize * 0.9,
-      'SNEAK',
+      buttonSize * 0.85,
+      'SNK',
       0x666666,
       () => this.toggleSneak(),
       true // is toggle
+    );
+
+    // Fullscreen button - top right corner
+    this.fullscreenButton = this.createButton(
+      gameWidth - 50,
+      10,
+      40,
+      '⛶',
+      0x888888,
+      () => this.toggleFullscreen()
     );
   }
 
@@ -151,18 +162,17 @@ export class TouchControls {
   ): Phaser.GameObjects.Container {
     const container = this.scene.add.container(x, y);
     container.setDepth(1000);
-    container.setScrollFactor(0);
 
     // Button background
     const bg = this.scene.add.graphics();
-    bg.fillStyle(0x000000, 0.5);
-    bg.fillRoundedRect(0, 0, size, size, 10);
-    bg.lineStyle(3, color, 0.8);
-    bg.strokeRoundedRect(0, 0, size, size, 10);
+    bg.fillStyle(0x000000, 0.6);
+    bg.fillRoundedRect(0, 0, size, size, 8);
+    bg.lineStyle(2, color, 0.9);
+    bg.strokeRoundedRect(0, 0, size, size, 8);
     container.add(bg);
 
     // Button label
-    const fontSize = label.length > 2 ? '12px' : '18px';
+    const fontSize = label.length > 2 ? '11px' : '16px';
     const text = this.scene.add.text(size / 2, size / 2, label, {
       fontFamily: 'monospace',
       fontSize: fontSize,
@@ -181,16 +191,17 @@ export class TouchControls {
     // Store reference for toggle buttons
     container.setData('bg', bg);
     container.setData('color', color);
+    container.setData('size', size);
     container.setData('isToggle', isToggle);
     container.setData('isActive', false);
 
     // Touch events
     hitArea.on('pointerdown', () => {
       bg.clear();
-      bg.fillStyle(color, 0.7);
-      bg.fillRoundedRect(0, 0, size, size, 10);
-      bg.lineStyle(3, 0xffffff, 1);
-      bg.strokeRoundedRect(0, 0, size, size, 10);
+      bg.fillStyle(color, 0.8);
+      bg.fillRoundedRect(0, 0, size, size, 8);
+      bg.lineStyle(2, 0xffffff, 1);
+      bg.strokeRoundedRect(0, 0, size, size, 8);
 
       callback();
     });
@@ -198,20 +209,20 @@ export class TouchControls {
     hitArea.on('pointerup', () => {
       if (!isToggle || !container.getData('isActive')) {
         bg.clear();
-        bg.fillStyle(0x000000, 0.5);
-        bg.fillRoundedRect(0, 0, size, size, 10);
-        bg.lineStyle(3, color, 0.8);
-        bg.strokeRoundedRect(0, 0, size, size, 10);
+        bg.fillStyle(0x000000, 0.6);
+        bg.fillRoundedRect(0, 0, size, size, 8);
+        bg.lineStyle(2, color, 0.9);
+        bg.strokeRoundedRect(0, 0, size, size, 8);
       }
     });
 
     hitArea.on('pointerout', () => {
       if (!isToggle || !container.getData('isActive')) {
         bg.clear();
-        bg.fillStyle(0x000000, 0.5);
-        bg.fillRoundedRect(0, 0, size, size, 10);
-        bg.lineStyle(3, color, 0.8);
-        bg.strokeRoundedRect(0, 0, size, size, 10);
+        bg.fillStyle(0x000000, 0.6);
+        bg.fillRoundedRect(0, 0, size, size, 8);
+        bg.lineStyle(2, color, 0.9);
+        bg.strokeRoundedRect(0, 0, size, size, 8);
       }
     });
 
@@ -223,29 +234,37 @@ export class TouchControls {
 
     const bg = this.sneakButton.getData('bg') as Phaser.GameObjects.Graphics;
     const color = this.sneakButton.getData('color') as number;
-    const size = 55 * 0.9;
+    const size = this.sneakButton.getData('size') as number;
 
     this.sneakButton.setData('isActive', this.isSneaking);
 
     bg.clear();
     if (this.isSneaking) {
-      bg.fillStyle(color, 0.8);
-      bg.fillRoundedRect(0, 0, size, size, 10);
-      bg.lineStyle(3, 0xffd700, 1);
-      bg.strokeRoundedRect(0, 0, size, size, 10);
+      bg.fillStyle(color, 0.9);
+      bg.fillRoundedRect(0, 0, size, size, 8);
+      bg.lineStyle(2, 0xffd700, 1);
+      bg.strokeRoundedRect(0, 0, size, size, 8);
     } else {
-      bg.fillStyle(0x000000, 0.5);
-      bg.fillRoundedRect(0, 0, size, size, 10);
-      bg.lineStyle(3, color, 0.8);
-      bg.strokeRoundedRect(0, 0, size, size, 10);
+      bg.fillStyle(0x000000, 0.6);
+      bg.fillRoundedRect(0, 0, size, size, 8);
+      bg.lineStyle(2, color, 0.9);
+      bg.strokeRoundedRect(0, 0, size, size, 8);
+    }
+  }
+
+  private toggleFullscreen(): void {
+    if (this.scene.scale.isFullscreen) {
+      this.scene.scale.stopFullscreen();
+    } else {
+      this.scene.scale.startFullscreen();
     }
   }
 
   private setupTouchListeners(): void {
-    // Handle joystick touch
+    // Handle joystick touch - use worldX/worldY for proper coordinates
     this.scene.input.on('pointerdown', (pointer: Phaser.Input.Pointer) => {
-      // Check if touch is in the left half of the screen (joystick area)
-      if (pointer.x < this.scene.cameras.main.width / 2) {
+      // Check if touch is in the left third of the screen (joystick area)
+      if (pointer.x < GAME_WIDTH / 3) {
         this.joystickPointer = pointer;
         this.updateJoystickPosition(pointer);
       }
@@ -318,6 +337,7 @@ export class TouchControls {
     this.attackButton?.setVisible(true);
     this.inventoryButton?.setVisible(true);
     this.sneakButton?.setVisible(true);
+    this.fullscreenButton?.setVisible(true);
   }
 
   hide(): void {
@@ -329,6 +349,7 @@ export class TouchControls {
     this.attackButton?.setVisible(false);
     this.inventoryButton?.setVisible(false);
     this.sneakButton?.setVisible(false);
+    // Keep fullscreen button visible
   }
 
   destroy(): void {
@@ -338,5 +359,6 @@ export class TouchControls {
     this.attackButton?.destroy();
     this.inventoryButton?.destroy();
     this.sneakButton?.destroy();
+    this.fullscreenButton?.destroy();
   }
 }
