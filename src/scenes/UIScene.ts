@@ -3,6 +3,13 @@ import { GameScene } from './GameScene';
 import { GAME_WIDTH, GAME_HEIGHT, SUSPICION_MAX } from '../config/GameConfig';
 import { ClueType } from '../types';
 
+// Helper to detect touch device
+const isTouchDevice = (): boolean => {
+  return 'ontouchstart' in window ||
+         navigator.maxTouchPoints > 0 ||
+         window.matchMedia('(pointer: coarse)').matches;
+};
+
 export class UIScene extends Phaser.Scene {
   private gameScene!: GameScene;
   private suspicionBar!: Phaser.GameObjects.Graphics;
@@ -471,9 +478,11 @@ export class UIScene extends Phaser.Scene {
   private updateInteractPrompt(): void {
     // Check for nearby interactive objects
     const nearbyNPC = this.gameScene['getNearbyNPC']?.();
+    const isTouch = isTouchDevice();
 
     if (nearbyNPC && nearbyNPC.isAlive) {
-      this.interactPrompt.setText('[E] Talk  [Q] Attack');
+      // On touch devices, buttons are visible, so just indicate what's possible
+      this.interactPrompt.setText(isTouch ? 'Tap E to Talk, Q to Attack' : '[E] Talk  [Q] Attack');
       this.interactPrompt.setAlpha(1);
     } else {
       // Check for doors
@@ -493,7 +502,7 @@ export class UIScene extends Phaser.Scene {
       }
 
       if (nearDoor) {
-        this.interactPrompt.setText('[E] Enter');
+        this.interactPrompt.setText(isTouch ? 'Tap E to Enter' : '[E] Enter');
         this.interactPrompt.setAlpha(1);
       } else {
         this.interactPrompt.setAlpha(0);
