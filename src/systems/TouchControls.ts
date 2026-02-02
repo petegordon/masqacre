@@ -91,49 +91,54 @@ export class TouchControls {
     const gameHeight = GAME_HEIGHT;
 
     const buttonSize = 50;
-    const buttonPadding = 10;
-    const rightMargin = 20;
-    const bottomMargin = 70;
 
-    // Position buttons in bottom-right corner
-    const buttonBaseX = gameWidth - rightMargin - buttonSize;
-    const buttonBaseY = gameHeight - bottomMargin;
+    // Clock is at x = GAME_WIDTH - 170 (630 for 800px width)
+    // Clock body is ~70px wide, centered on that position
+    const clockCenterX = gameWidth - 170;
 
-    // Interact button (E) - primary action
+    // Right column (E on top, Q below) - to the RIGHT of the clock
+    const rightColumnX = clockCenterX + 70; // Right of clock body
+    const buttonTopY = gameHeight - 145;    // Upper button row
+    const buttonBottomY = gameHeight - 85;  // Lower button row
+
+    // Left column (INV on top, SNK below) - to the LEFT of the clock
+    const leftColumnX = clockCenterX - 70 - buttonSize; // Left of clock body
+
+    // Interact button (E) - top right of clock
     this.interactButton = this.createButton(
-      buttonBaseX - buttonSize - buttonPadding,
-      buttonBaseY - buttonSize - buttonPadding,
+      rightColumnX,
+      buttonTopY,
       buttonSize,
       'E',
       0x44aa44,
       () => this.onInteract?.()
     );
 
-    // Attack button (Q) - secondary action
+    // Attack button (Q) - bottom right of clock
     this.attackButton = this.createButton(
-      buttonBaseX,
-      buttonBaseY - buttonSize - buttonPadding,
+      rightColumnX,
+      buttonBottomY,
       buttonSize,
       'Q',
       0xaa4444,
       () => this.onAttack?.()
     );
 
-    // Inventory button (Tab) - smaller
+    // Inventory button (INV) - top left of clock
     this.inventoryButton = this.createButton(
-      buttonBaseX,
-      buttonBaseY - (buttonSize + buttonPadding) * 2,
-      buttonSize * 0.8,
+      leftColumnX,
+      buttonTopY,
+      buttonSize,
       'INV',
       0x4444aa,
       () => this.onInventory?.()
     );
 
-    // Sneak button (Shift) - toggle
+    // Sneak button (SNK) - bottom left of clock, toggle
     this.sneakButton = this.createButton(
-      buttonBaseX - buttonSize - buttonPadding,
-      buttonBaseY,
-      buttonSize * 0.85,
+      leftColumnX,
+      buttonBottomY,
+      buttonSize,
       'SNK',
       0x666666,
       () => this.toggleSneak(),

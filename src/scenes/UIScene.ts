@@ -109,7 +109,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   private createGrandfatherClock(): void {
-    const clockX = GAME_WIDTH - 70;
+    // Clock positioned more to the left to make room for action buttons on both sides
+    const clockX = GAME_WIDTH - 170;
     const clockY = GAME_HEIGHT - 140;
 
     this.clockContainer = this.add.container(clockX, clockY);
