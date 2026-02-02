@@ -172,12 +172,17 @@ export class DialogueScene extends Phaser.Scene {
   }
 
   private displayContinuePrompt(nextNodeId: string): void {
-    const text = this.add.text(0, 70, '[SPACE or ENTER to continue]', {
+    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const promptText = isMobile ? '[Tap to continue]' : '[SPACE or ENTER to continue]';
+
+    const text = this.add.text(0, 70, promptText, {
       fontFamily: 'monospace',
       fontSize: '12px',
       color: '#888888'
     });
     text.setOrigin(0.5);
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerdown', () => this.confirmSelection());
     this.dialogueBox.add(text);
     this.choiceTexts.push(text);
 
@@ -186,12 +191,17 @@ export class DialogueScene extends Phaser.Scene {
   }
 
   private displayExitPrompt(): void {
-    const text = this.add.text(0, 70, '[SPACE or ENTER to leave]', {
+    const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    const promptText = isMobile ? '[Tap to leave]' : '[SPACE or ENTER to leave]';
+
+    const text = this.add.text(0, 70, promptText, {
       fontFamily: 'monospace',
       fontSize: '12px',
       color: '#888888'
     });
     text.setOrigin(0.5);
+    text.setInteractive({ useHandCursor: true });
+    text.on('pointerdown', () => this.confirmSelection());
     this.dialogueBox.add(text);
     this.choiceTexts.push(text);
 

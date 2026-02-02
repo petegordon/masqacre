@@ -677,12 +677,15 @@ export class UIScene extends Phaser.Scene {
     modal.add(description);
 
     // Continue prompt
-    const prompt = this.add.text(0, 55, '[Press SPACE to continue]', {
+    const isMobile = isTouchDevice();
+    const promptText = isMobile ? '[Tap to continue]' : '[Press SPACE to continue]';
+    const prompt = this.add.text(0, 55, promptText, {
       fontFamily: 'monospace',
       fontSize: '12px',
       color: '#888888'
     });
     prompt.setOrigin(0.5);
+    prompt.setInteractive({ useHandCursor: true });
     modal.add(prompt);
 
     // Pulse the prompt
@@ -694,18 +697,26 @@ export class UIScene extends Phaser.Scene {
       repeat: -1
     });
 
-    // Wait for key press to dismiss
+    // Wait for key press or tap to dismiss
     const dismissModal = () => {
       overlay.destroy();
       modal.destroy();
       this.input.keyboard?.off('keydown-SPACE', dismissModal);
       this.input.keyboard?.off('keydown-ENTER', dismissModal);
       this.input.keyboard?.off('keydown-E', dismissModal);
+      prompt.off('pointerdown', dismissModal);
+      overlay.off('pointerdown', dismissModal);
     };
 
+    // Keyboard
     this.input.keyboard?.once('keydown-SPACE', dismissModal);
     this.input.keyboard?.once('keydown-ENTER', dismissModal);
     this.input.keyboard?.once('keydown-E', dismissModal);
+
+    // Touch - tap anywhere on overlay or prompt
+    prompt.on('pointerdown', dismissModal);
+    overlay.setInteractive(new Phaser.Geom.Rectangle(0, 0, GAME_WIDTH, GAME_HEIGHT), Phaser.Geom.Rectangle.Contains);
+    overlay.on('pointerdown', dismissModal);
   }
 
   private onTargetIdentified(): void {
