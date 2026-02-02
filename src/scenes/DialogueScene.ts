@@ -160,7 +160,7 @@ export class DialogueScene extends Phaser.Scene {
     const mobile = isMobile();
     const fontSize = mobile ? '16px' : '12px';
     const lineHeight = mobile ? 32 : 22;
-    const startY = mobile ? 5 : -5;
+    const startY = mobile ? -27 : -5;
 
     choices.forEach((choice, index) => {
       // Create a background for better tap target on mobile
