@@ -6,6 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="mobile-web-app-capable" content="yes">
+  <meta name="screen-orientation" content="landscape">
   <title>Masqacre - A Masquerade Mystery</title>
   <style>
     * {
@@ -18,41 +19,88 @@
       height: 100%;
       overflow: hidden;
       background-color: #1a1a2e;
-      /* Prevent pull-to-refresh and overscroll */
       overscroll-behavior: none;
       -webkit-overflow-scrolling: touch;
-      /* iOS safe area support */
-      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
     body {
       display: flex;
       justify-content: center;
       align-items: center;
-      /* Use dvh for mobile browsers (dynamic viewport height) */
       min-height: 100vh;
       min-height: 100dvh;
-      /* Prevent text selection */
       -webkit-user-select: none;
       user-select: none;
-      /* Prevent touch callout */
       -webkit-touch-callout: none;
     }
     #game-container {
       image-rendering: pixelated;
       image-rendering: crisp-edges;
-      /* Prevent canvas from being larger than viewport */
       max-width: 100%;
       max-height: 100%;
-      /* Touch action for game */
       touch-action: none;
     }
     #game-container canvas {
       display: block;
       touch-action: none;
     }
+
+    /* Rotate device overlay - shown in portrait on mobile */
+    #rotate-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #1a1a2e;
+      z-index: 9999;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #ffd700;
+      font-family: Georgia, serif;
+      text-align: center;
+      padding: 20px;
+    }
+    #rotate-overlay .rotate-icon {
+      font-size: 80px;
+      margin-bottom: 20px;
+      animation: rotate-hint 2s ease-in-out infinite;
+    }
+    #rotate-overlay h2 {
+      font-size: 28px;
+      margin-bottom: 15px;
+    }
+    #rotate-overlay p {
+      font-size: 18px;
+      color: #aaa;
+      max-width: 300px;
+    }
+    @keyframes rotate-hint {
+      0%, 100% { transform: rotate(0deg); }
+      25% { transform: rotate(-15deg); }
+      75% { transform: rotate(15deg); }
+    }
+
+    /* Show rotate overlay on mobile portrait */
+    @media screen and (max-width: 900px) and (orientation: portrait) {
+      #rotate-overlay {
+        display: flex;
+      }
+      #game-container {
+        display: none;
+      }
+    }
   </style>
 </head>
 <body>
+  <!-- Rotate device prompt for portrait mode -->
+  <div id="rotate-overlay">
+    <div class="rotate-icon">📱</div>
+    <h2>Rotate Your Device</h2>
+    <p>Masqacre plays best in landscape mode. Please rotate your device to continue.</p>
+  </div>
+
   <div id="game-container"></div>
   <script type="module" src="/src/main.ts"></script>
 </body>

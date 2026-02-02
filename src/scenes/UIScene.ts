@@ -628,6 +628,8 @@ export class UIScene extends Phaser.Scene {
   }
 
   private onClueDiscovered(clue: ClueType): void {
+    const mobile = isTouchDevice();
+
     // Create modal overlay
     const overlay = this.add.graphics();
     overlay.fillStyle(0x000000, 0.7);
@@ -638,18 +640,20 @@ export class UIScene extends Phaser.Scene {
     const modal = this.add.container(GAME_WIDTH / 2, GAME_HEIGHT / 2);
     modal.setDepth(201);
 
-    // Modal background
+    // Modal background - larger on mobile
+    const modalWidth = mobile ? 420 : 360;
+    const modalHeight = mobile ? 200 : 160;
     const bg = this.add.graphics();
     bg.fillStyle(0x1a1a2e, 0.98);
-    bg.fillRect(-180, -80, 360, 160);
+    bg.fillRect(-modalWidth/2, -modalHeight/2, modalWidth, modalHeight);
     bg.lineStyle(3, 0xffd700);
-    bg.strokeRect(-180, -80, 360, 160);
+    bg.strokeRect(-modalWidth/2, -modalHeight/2, modalWidth, modalHeight);
     modal.add(bg);
 
     // Header
-    const header = this.add.text(0, -55, 'CLUE DISCOVERED', {
+    const header = this.add.text(0, -modalHeight/2 + 25, 'CLUE DISCOVERED', {
       fontFamily: 'Georgia, serif',
-      fontSize: '20px',
+      fontSize: mobile ? '26px' : '20px',
       color: '#ffd700'
     });
     header.setOrigin(0.5);
@@ -657,9 +661,9 @@ export class UIScene extends Phaser.Scene {
 
     // Category label
     const categoryNames = { mask: 'MASK CLUE', location: 'LOCATION CLUE', behavior: 'BEHAVIOR CLUE' };
-    const category = this.add.text(0, -25, categoryNames[clue.category as keyof typeof categoryNames], {
+    const category = this.add.text(0, -modalHeight/2 + 55, categoryNames[clue.category as keyof typeof categoryNames], {
       fontFamily: 'monospace',
-      fontSize: '12px',
+      fontSize: mobile ? '14px' : '12px',
       color: '#888888'
     });
     category.setOrigin(0.5);
@@ -668,21 +672,31 @@ export class UIScene extends Phaser.Scene {
     // Clue description
     const description = this.add.text(0, 10, clue.description, {
       fontFamily: 'monospace',
-      fontSize: '16px',
+      fontSize: mobile ? '18px' : '16px',
       color: '#ffffff',
       align: 'center',
-      wordWrap: { width: 320 }
+      wordWrap: { width: modalWidth - 40 }
     });
     description.setOrigin(0.5);
     modal.add(description);
 
-    // Continue prompt
-    const isMobile = isTouchDevice();
-    const promptText = isMobile ? '[Tap to continue]' : '[Press SPACE to continue]';
-    const prompt = this.add.text(0, 55, promptText, {
+    // Continue prompt - make it a button on mobile
+    const promptText = mobile ? '[ TAP TO CONTINUE ]' : '[Press SPACE to continue]';
+
+    if (mobile) {
+      const btnBg = this.add.graphics();
+      btnBg.fillStyle(0x8b0000, 0.8);
+      btnBg.fillRoundedRect(-100, modalHeight/2 - 50, 200, 40, 8);
+      btnBg.lineStyle(2, 0xffd700);
+      btnBg.strokeRoundedRect(-100, modalHeight/2 - 50, 200, 40, 8);
+      modal.add(btnBg);
+    }
+
+    const prompt = this.add.text(0, mobile ? modalHeight/2 - 30 : modalHeight/2 - 25, promptText, {
       fontFamily: 'monospace',
-      fontSize: '12px',
-      color: '#888888'
+      fontSize: mobile ? '16px' : '12px',
+      color: mobile ? '#ffd700' : '#888888',
+      fontStyle: mobile ? 'bold' : 'normal'
     });
     prompt.setOrigin(0.5);
     prompt.setInteractive({ useHandCursor: true });
