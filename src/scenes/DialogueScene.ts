@@ -159,7 +159,7 @@ export class DialogueScene extends Phaser.Scene {
   private displayChoices(choices: DialogueChoice[]): void {
     const mobile = isMobile();
     const fontSize = mobile ? '16px' : '12px';
-    const lineHeight = mobile ? 32 : 22;
+    const lineHeight = mobile ? 26 : 22;
     const startY = mobile ? -27 : -5;
 
     choices.forEach((choice, index) => {
